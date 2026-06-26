@@ -1,0 +1,275 @@
+{
+  "results": [
+    {
+      "job_type": "small",
+      "input_size_mb": 1000.0,
+      "num_partitions": 4,
+      "predicted_time": 0.2603,
+      "actual_time": 17.8808,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 0.0026,
+      "end_ts": 17.8834,
+      "job_index": 0
+    },
+    {
+      "job_type": "small",
+      "input_size_mb": 1000.0,
+      "num_partitions": 2,
+      "predicted_time": 0.2803,
+      "actual_time": 17.0609,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 17.8837,
+      "end_ts": 34.9446,
+      "job_index": 1
+    },
+    {
+      "job_type": "small",
+      "input_size_mb": 1000.0,
+      "num_partitions": 2,
+      "predicted_time": 0.2803,
+      "actual_time": 16.8172,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 34.9449,
+      "end_ts": 51.7621,
+      "job_index": 2
+    },
+    {
+      "job_type": "small",
+      "input_size_mb": 500.0,
+      "num_partitions": 2,
+      "predicted_time": 0.2803,
+      "actual_time": 8.3312,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 51.7624,
+      "end_ts": 60.0936,
+      "job_index": 3
+    },
+    {
+      "job_type": "small",
+      "input_size_mb": 1500.0,
+      "num_partitions": 8,
+      "predicted_time": 0.5104,
+      "actual_time": 22.4802,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 60.094,
+      "end_ts": 82.5742,
+      "job_index": 4
+    },
+    {
+      "job_type": "large",
+      "input_size_mb": 1.5,
+      "num_partitions": 4,
+      "predicted_time": 0.6704,
+      "actual_time": 82.862,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 82.5746,
+      "end_ts": 165.4366,
+      "job_index": 5
+    },
+    {
+      "job_type": "large",
+      "input_size_mb": 1.5,
+      "num_partitions": 2,
+      "predicted_time": 0.6946,
+      "actual_time": 128.9128,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 165.4371,
+      "end_ts": 294.3499,
+      "job_index": 6
+    },
+    {
+      "job_type": "large",
+      "input_size_mb": 1.5,
+      "num_partitions": 8,
+      "predicted_time": 0.7914,
+      "actual_time": 61.4893,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 294.3503,
+      "end_ts": 355.8395,
+      "job_index": 7
+    },
+    {
+      "job_type": "large",
+      "input_size_mb": 1.5,
+      "num_partitions": 8,
+      "predicted_time": 0.7914,
+      "actual_time": 63.5916,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 355.84,
+      "end_ts": 419.4316,
+      "job_index": 8
+    },
+    {
+      "job_type": "large",
+      "input_size_mb": 1.5,
+      "num_partitions": 8,
+      "predicted_time": 0.7914,
+      "actual_time": 157.1669,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 419.4321,
+      "end_ts": 576.599,
+      "job_index": 9
+    },
+    {
+      "job_type": "medium",
+      "input_size_mb": 304.0,
+      "num_partitions": 2,
+      "predicted_time": 0.9966,
+      "actual_time": 15.9335,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 576.5995,
+      "end_ts": 592.533,
+      "job_index": 10
+    },
+    {
+      "job_type": "medium",
+      "input_size_mb": 304.0,
+      "num_partitions": 8,
+      "predicted_time": 1.1361,
+      "actual_time": 14.2686,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 592.5335,
+      "end_ts": 606.8021,
+      "job_index": 11
+    },
+    {
+      "job_type": "medium",
+      "input_size_mb": 99.0,
+      "num_partitions": 2,
+      "predicted_time": 1.1657,
+      "actual_time": 4.4482,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 606.8026,
+      "end_ts": 611.2507,
+      "job_index": 12
+    },
+    {
+      "job_type": "medium",
+      "input_size_mb": 304.0,
+      "num_partitions": 2,
+      "predicted_time": 1.1657,
+      "actual_time": 14.0879,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 611.2511,
+      "end_ts": 625.339,
+      "job_index": 13
+    },
+    {
+      "job_type": "medium",
+      "input_size_mb": 199.0,
+      "num_partitions": 2,
+      "predicted_time": 1.1657,
+      "actual_time": 9.4916,
+      "tier": "small",
+      "pool": "small_pool",
+      "config_used": {
+        "spark.executor.memory": "512m",
+        "spark.executor.cores": "1",
+        "spark.sql.shuffle.partitions": "4",
+        "spark.driver.memory": "1g"
+      },
+      "start_ts": 625.3396,
+      "end_ts": 634.8312,
+      "job_index": 14
+    }
+  ],
+  "makespan": 636.1155
+}

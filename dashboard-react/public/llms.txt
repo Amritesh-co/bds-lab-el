@@ -1,0 +1,18 @@
+# PASTA Spark Scheduler
+
+PASTA (Predictive Adaptive Scheduler & Task Allocator) is a dynamic task scheduling system for Apache Spark that uses machine learning (XGBoost & Random Forest) to predict job execution times and adaptively adjust scheduling decisions and resource configurations.
+
+## Features
+
+- **Workload Prediction**: Predicts Spark job durations to prevent convoy effects.
+- **Shortest Job First**: Minimizes job execution latency.
+- **Dynamic Resource Tiers**: Automatically scales memory/cores per job class.
+- **Timed Aging**: Prevents starvation of long-running analytics jobs.
+- **Feedback Loop**: Continuously logs local runs to improve model accuracy over time.
+
+## Navigation and Dashboard Pages
+
+- [Dashboard Overview](http://localhost:5173/#overview) - View live makespan comparisons, speeds, average job latencies, and derived statistics.
+- [Live Simulation](http://localhost:5173/#simulation) - Play/pause interactive Gantt timelines with flying data packets.
+- [PASTA Algorithm Deep Dive](http://localhost:5173/#pasta) - Details on timed aging formulas, dynamic percentile-based thresholds, and feedback loops.
+- [How Apache Spark Works](http://localhost:5173/#spark) - Distributed computation models, memory architecture, and interactive DAG shufflers.

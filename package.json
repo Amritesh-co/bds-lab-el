@@ -1,0 +1,15 @@
+{
+  "name": "pasta-spark-scheduler",
+  "version": "1.0.0",
+  "description": "Adaptive Task Scheduling in Apache Spark using Workload Prediction",
+  "scripts": {
+    "bds": "bash run_demo.sh & (cd dashboard-react && npm run dev)"
+  },
+  "keywords": [
+    "spark",
+    "scheduler",
+    "machine-learning"
+  ],
+  "author": "",
+  "license": "ISC"
+}

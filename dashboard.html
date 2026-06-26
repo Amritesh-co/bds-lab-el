@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PASTA Spark Scheduler · Analytics Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "primary":      "#adc6ff",
+        "primary-container": "#4d8eff",
+        "on-primary":   "#002e6a",
+        "secondary":    "#4edea3",
+        "secondary-container": "#00a572",
+        "tertiary":     "#ffb95f",
+        "tertiary-container": "#ca8100",
+        "error":        "#ffb4ab",
+        "error-container": "#93000a",
+        "surface":      "#051424",
+        "surface-dim":  "#051424",
+        "surface-bright": "#2c3a4c",
+        "surface-container-lowest": "#010f1f",
+        "surface-container-low": "#0d1c2d",
+        "surface-container": "#122131",
+        "surface-container-high": "#1c2b3c",
+        "surface-container-highest": "#273647",
+        "surface-variant": "#273647",
+        "on-surface":   "#d4e4fa",
+        "on-surface-variant": "#c2c6d6",
+        "outline":      "#8c909f",
+        "outline-variant": "#424754",
+        "background":   "#051424",
+      },
+      borderRadius: {
+        DEFAULT: "0.125rem", lg: "0.5rem", xl: "0.75rem", full: "9999px"
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; background-color: #051424; color: #d4e4fa; }
+  code, .mono { font-family: 'JetBrains Mono', monospace; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+  .fill-icon { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  .glass { background: rgba(18,33,49,0.55); backdrop-filter: blur(12px); border: 1px solid rgba(66,71,84,0.25); }
+  .glow-green { box-shadow: 0 0 20px rgba(78,222,163,0.15); }
+  .glow-yellow { box-shadow: 0 0 20px rgba(255,185,95,0.15); }
+  .glow-red { box-shadow: 0 0 20px rgba(255,180,171,0.15); }
+  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(1.3)} }
+  .pulse { animation: pulse-dot 2s infinite ease-in-out; }
+  @keyframes slide-in { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  .page-anim { animation: slide-in 0.3s ease forwards; }
+  /* Gantt */
+  .gantt-bar { position:absolute; height:100%; border-radius:4px; transition: opacity 0.3s; }
+  .gantt-bar.dim { opacity: 0.25; }
+  .gantt-bar.done { opacity: 1; }
+  .gantt-bar.running { opacity: 1; animation: pulse-dot 1s infinite; }
+  .gantt-row { position:relative; height:28px; background:rgba(255,255,255,0.02); border-radius:4px; overflow:visible; }
+  #cursor-line { position:absolute; top:0; bottom:0; width:2px; background:#adc6ff; opacity:0.8; z-index:10; pointer-events:none; box-shadow: 0 0 8px #adc6ff; }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:#273647; border-radius:4px; }
+  /* Nav active */
+  .nav-link.active { color: #adc6ff !important; border-bottom: 2px solid #adc6ff; }
+  /* Data table */
+  .tbl tr:hover td { background: rgba(173,198,255,0.04); }
+  /* Page visibility */
+  .page { display:none; }
+  .page.active { display:block; }
+  /* Formula highlight */
+  .f-blue { color: #adc6ff; }
+  .f-orange { color: #ffb95f; }
+  .f-green { color: #4edea3; }
+  .f-red { color: #ffb4ab; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ═══════════════════════════════════════════════════════ NAVBAR -->
+<header class="sticky top-0 z-50 bg-surface-container-low border-b border-outline-variant/20 backdrop-blur-xl flex items-center justify-between px-8 h-14">
+  <div class="flex items-center gap-3">
+    <span class="material-symbols-outlined text-secondary fill-icon" style="font-size:22px">local_fire_department</span>
+    <span class="font-black text-base tracking-tight text-on-surface">PASTA <span class="text-secondary">Spark</span></span>
+    <span class="text-outline text-xs ml-1 hidden sm:inline">· Adaptive Task Scheduling</span>
+  </div>
+  <nav class="flex items-center gap-1">
+    <button onclick="showPage('overview')" class="nav-link active px-4 py-3 text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors" id="nav-overview">Overview</button>
+    <button onclick="showPage('simulation')" class="nav-link px-4 py-3 text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors" id="nav-simulation">Simulation</button>
+    <button onclick="showPage('pasta')" class="nav-link px-4 py-3 text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors" id="nav-pasta">PASTA Algorithm</button>
+    <button onclick="showPage('spark')" class="nav-link px-4 py-3 text-xs font-semibold uppercase tracking-wider text-on-surface-variant hover:text-primary transition-colors" id="nav-spark">How Spark Works</button>
+  </nav>
+  <div class="flex items-center gap-2">
+    <div class="w-2 h-2 rounded-full bg-secondary pulse"></div>
+    <span class="text-xs text-secondary mono">LIVE</span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════ PAGE 1: OVERVIEW -->
+<div id="page-overview" class="page active page-anim max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+
+  <!-- Status bar -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-secondary pulse inline-block"></span>
+      <span class="text-xs mono text-secondary tracking-widest uppercase">Benchmark Complete · 15-Job Queue · Local[*] Mode</span>
+    </div>
+    <div class="flex gap-2">
+      <div class="glass rounded-lg px-3 py-1 flex items-center gap-1 text-xs text-on-surface-variant">
+        <span class="material-symbols-outlined" style="font-size:14px">database</span>
+        Google Cluster Trace 2011
+      </div>
+      <div class="glass rounded-lg px-3 py-1 flex items-center gap-1 text-xs text-on-surface-variant">
+        <span class="material-symbols-outlined" style="font-size:14px">psychology</span>
+        XGBoost + Random Forest
+      </div>
+    </div>
+  </div>
+
+  <!-- Hero metric cards -->
+  <div class="grid grid-cols-3 gap-4">
+    <!-- FIFO -->
+    <div class="glass rounded-xl p-5 border-t-4 border-error glow-red relative overflow-hidden group">
+      <div class="flex justify-between items-start mb-3">
+        <span class="text-xs font-bold uppercase tracking-widest text-error/80">FIFO · Baseline</span>
+        <span class="material-symbols-outlined text-error/40" style="font-size:20px">low_priority</span>
+      </div>
+      <div class="text-5xl font-black text-on-surface mb-1">8.75<span class="text-2xl font-normal text-on-surface-variant ml-1">s</span></div>
+      <div class="text-xs uppercase tracking-wider text-on-surface-variant mb-3">Total Makespan</div>
+      <p class="text-xs text-on-surface-variant leading-relaxed">Jobs run in arrival order. No prediction. No reordering. The <em>Convoy Effect</em> delays short jobs.</p>
+      <div class="mt-3 flex gap-1 flex-wrap">
+        <span class="bg-error/10 border border-error/20 text-error text-[10px] px-2 py-0.5 rounded-full">No ML</span>
+        <span class="bg-error/10 border border-error/20 text-error text-[10px] px-2 py-0.5 rounded-full">Static Order</span>
+        <span class="bg-error/10 border border-error/20 text-error text-[10px] px-2 py-0.5 rounded-full">Convoy Effect</span>
+      </div>
+      <div class="absolute -right-4 -bottom-4 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity">
+        <span class="material-symbols-outlined" style="font-size:120px">sort</span>
+      </div>
+    </div>
+    <!-- SJF -->
+    <div class="glass rounded-xl p-5 border-t-4 border-tertiary glow-yellow relative overflow-hidden group">
+      <div class="flex justify-between items-start mb-3">
+        <span class="text-xs font-bold uppercase tracking-widest text-tertiary/80">SJF / Adaptive</span>
+        <span class="material-symbols-outlined text-tertiary/40" style="font-size:20px">analytics</span>
+      </div>
+      <div class="text-5xl font-black text-on-surface mb-1">6.39<span class="text-2xl font-normal text-on-surface-variant ml-1">s</span></div>
+      <div class="text-xs uppercase tracking-wider text-on-surface-variant mb-3">Total Makespan</div>
+      <div class="flex items-center gap-1 mb-2 bg-tertiary/10 border border-tertiary/20 rounded px-2 py-1 w-fit">
+        <span class="material-symbols-outlined text-tertiary" style="font-size:12px">bolt</span>
+        <span class="text-[10px] text-tertiary font-bold">ML PREDICTION ACTIVE</span>
+      </div>
+      <p class="text-xs text-on-surface-variant leading-relaxed">ML predicts job duration → reorders shortest-first. Optimal average wait time but risks starvation.</p>
+      <div class="mt-3 flex gap-1 flex-wrap">
+        <span class="bg-tertiary/10 border border-tertiary/20 text-tertiary text-[10px] px-2 py-0.5 rounded-full">XGBoost Predict</span>
+        <span class="bg-tertiary/10 border border-tertiary/20 text-tertiary text-[10px] px-2 py-0.5 rounded-full">SJF Order</span>
+        <span class="bg-tertiary/10 border border-tertiary/20 text-tertiary text-[10px] px-2 py-0.5 rounded-full">Fixed Tiers</span>
+      </div>
+    </div>
+    <!-- PASTA -->
+    <div class="glass rounded-xl p-5 border-t-4 border-secondary glow-green relative overflow-hidden group bg-gradient-to-br from-secondary/5 to-transparent">
+      <div class="flex justify-between items-start mb-3">
+        <span class="text-xs font-bold uppercase tracking-widest text-secondary">PASTA · Winner</span>
+        <div class="bg-secondary text-on-primary px-2 py-0.5 rounded-full flex items-center gap-1">
+          <span class="material-symbols-outlined fill-icon text-[#051424]" style="font-size:12px">emoji_events</span>
+          <span class="text-[10px] font-black text-[#051424]">BEST</span>
+        </div>
+      </div>
+      <div class="text-5xl font-black text-secondary mb-1">6.19<span class="text-2xl font-normal text-secondary/60 ml-1">s</span></div>
+      <div class="text-xs uppercase tracking-wider text-on-surface-variant mb-3">Total Makespan</div>
+      <p class="text-xs text-on-surface-variant leading-relaxed">Aging prevents starvation. Dynamic percentile tiers adapt to workload. Feedback loop retrains model.</p>
+      <div class="mt-3 flex gap-1 flex-wrap">
+        <span class="bg-secondary/10 border border-secondary/30 text-secondary text-[10px] px-2 py-0.5 rounded-full">Aging α=0.70</span>
+        <span class="bg-secondary/10 border border-secondary/30 text-secondary text-[10px] px-2 py-0.5 rounded-full">Dynamic Tiers</span>
+        <span class="bg-secondary/10 border border-secondary/30 text-secondary text-[10px] px-2 py-0.5 rounded-full">Feedback Loop</span>
+      </div>
+      <div class="absolute -right-4 -bottom-4 opacity-[0.05] group-hover:opacity-[0.1] transition-opacity">
+        <span class="material-symbols-outlined" style="font-size:120px">auto_awesome</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Middle section: table + charts -->
+  <div class="grid grid-cols-3 gap-4">
+    <!-- Job Queue Table -->
+    <div class="col-span-2 glass rounded-xl overflow-hidden flex flex-col">
+      <div class="px-5 py-3 border-b border-outline-variant/10 flex justify-between items-center">
+        <h3 class="font-semibold text-sm flex items-center gap-2">
+          <span class="material-symbols-outlined" style="font-size:18px">reorder</span>
+          15-Job Benchmark Queue — Actual Execution Data
+        </h3>
+        <span class="text-xs text-on-surface-variant mono">seed=42 · reproducible</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left tbl" id="job-table">
+          <thead>
+            <tr class="bg-surface-container-highest/40 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+              <th class="px-4 py-2 border-b border-outline-variant/10">#</th>
+              <th class="px-4 py-2 border-b border-outline-variant/10">Type</th>
+              <th class="px-4 py-2 border-b border-outline-variant/10 text-right">Size MB</th>
+              <th class="px-4 py-2 border-b border-outline-variant/10 text-right">Parts</th>
+              <th class="px-4 py-2 border-b border-outline-variant/10 text-center">FIFO Actual</th>
+              <th class="px-4 py-2 border-b border-outline-variant/10 text-center">SJF Actual</th>
+              <th class="px-4 py-2 border-b border-outline-variant/10 text-center">PASTA Actual</th>
+              <th class="px-4 py-2 border-b border-outline-variant/10 text-center">PASTA Tier</th>
+            </tr>
+          </thead>
+          <tbody class="text-xs mono" id="job-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right col: speedup + latency -->
+    <div class="flex flex-col gap-4">
+      <!-- Speedup -->
+      <div class="glass rounded-xl p-5">
+        <h4 class="font-semibold text-sm mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined" style="font-size:16px">speed</span>
+          Speedup vs FIFO
+        </h4>
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span class="text-on-surface-variant">FIFO</span><span class="text-error mono font-bold">1.00×</span></div>
+            <div class="h-3 bg-surface-container-high rounded-full overflow-hidden">
+              <div class="h-full bg-error/60 rounded-full transition-all duration-1000 speedup-bar" data-width="40"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span class="text-on-surface-variant">SJF / Adaptive</span><span class="text-tertiary mono font-bold">1.37×</span></div>
+            <div class="h-3 bg-surface-container-high rounded-full overflow-hidden">
+              <div class="h-full bg-tertiary rounded-full transition-all duration-1000 speedup-bar shadow-[0_0_8px_rgba(255,185,95,0.4)]" data-width="55"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span class="text-secondary font-bold">PASTA</span><span class="text-secondary mono font-bold">1.41×</span></div>
+            <div class="h-3 bg-surface-container-high rounded-full overflow-hidden">
+              <div class="h-full bg-secondary rounded-full transition-all duration-1000 speedup-bar shadow-[0_0_8px_rgba(78,222,163,0.4)]" data-width="72"></div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 pt-4 border-t border-outline-variant/10 grid grid-cols-3 gap-2 text-center">
+          <div class="bg-surface-container rounded p-2">
+            <div class="text-[10px] text-on-surface-variant">Avg Latency</div>
+            <div class="text-error mono font-bold text-sm">0.58s</div>
+            <div class="text-[9px] text-on-surface-variant">FIFO</div>
+          </div>
+          <div class="bg-surface-container rounded p-2">
+            <div class="text-[10px] text-on-surface-variant">Avg Latency</div>
+            <div class="text-tertiary mono font-bold text-sm">0.43s</div>
+            <div class="text-[9px] text-on-surface-variant">SJF</div>
+          </div>
+          <div class="bg-surface-container rounded p-2 border border-secondary/20">
+            <div class="text-[10px] text-on-surface-variant">Avg Latency</div>
+            <div class="text-secondary mono font-bold text-sm">0.41s</div>
+            <div class="text-[9px] text-secondary">PASTA</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dataset sources -->
+      <div class="glass rounded-xl p-5">
+        <h4 class="font-semibold text-sm mb-3 flex items-center gap-2">
+          <span class="material-symbols-outlined" style="font-size:16px">dataset</span>
+          Training Datasets
+        </h4>
+        <div class="space-y-3">
+          <div class="bg-primary/5 border border-primary/20 rounded-lg p-3">
+            <div class="text-xs font-bold text-primary mb-1">📊 Google Cluster Trace 2011</div>
+            <div class="text-2xl font-black mono text-on-surface">34.9M</div>
+            <div class="text-[10px] text-on-surface-variant mt-1">rows · real production cluster workload</div>
+          </div>
+          <div class="bg-secondary/5 border border-secondary/20 rounded-lg p-3">
+            <div class="text-xs font-bold text-secondary mb-1">🔄 Local Feedback Loop</div>
+            <div class="text-2xl font-black mono text-on-surface">70</div>
+            <div class="text-[10px] text-on-surface-variant mt-1">rows · actual Spark timings + feedback</div>
+            <div class="mt-1 text-[9px] bg-secondary/10 rounded px-2 py-0.5 text-secondary w-fit">Auto-retrains after each run</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ PAGE 2: SIMULATION -->
+<div id="page-simulation" class="page max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+
+  <div class="flex items-end justify-between">
+    <div>
+      <h1 class="text-3xl font-black text-on-surface">Live Simulation</h1>
+      <p class="text-sm text-on-surface-variant mt-1">Watch all 3 algorithms process 15 jobs — animated from real benchmark data</p>
+    </div>
+    <!-- Playback controls -->
+    <div class="glass rounded-xl p-2 flex items-center gap-2">
+      <button id="btn-play" onclick="startSimulation()" class="bg-primary-container text-on-primary px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold hover:brightness-110 transition-all">
+        <span class="material-symbols-outlined fill-icon" style="font-size:18px">play_arrow</span> Play
+      </button>
+      <button id="btn-pause" onclick="pauseSimulation()" class="border border-outline-variant text-on-surface hover:bg-surface-variant rounded-lg p-2 transition-colors" disabled>
+        <span class="material-symbols-outlined" style="font-size:18px">pause</span>
+      </button>
+      <button onclick="resetSimulation()" class="border border-outline-variant text-on-surface hover:bg-surface-variant rounded-lg p-2 transition-colors">
+        <span class="material-symbols-outlined" style="font-size:18px">refresh</span>
+      </button>
+      <div class="h-6 w-px bg-outline-variant/30 mx-1"></div>
+      <select id="speed-select" class="bg-surface-container border border-outline-variant text-on-surface rounded-lg text-xs py-1.5 px-2 mono">
+        <option value="1">1× Speed</option>
+        <option value="2">2× Speed</option>
+        <option value="5">5× Speed</option>
+        <option value="10">10× Speed</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Time scrubber -->
+  <div class="glass rounded-xl px-5 py-3">
+    <div class="flex justify-between text-xs mono text-on-surface-variant mb-2">
+      <span>0.00s</span>
+      <span class="text-primary font-bold" id="current-time-display">0.00s</span>
+      <span>8.75s (FIFO makespan)</span>
+    </div>
+    <div class="relative h-2 bg-surface-container-high rounded-full">
+      <div id="scrubber-fill" class="absolute top-0 left-0 h-full bg-primary rounded-full transition-none" style="width:0%"></div>
+      <div id="scrubber-dot" class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full border-2 border-surface cursor-pointer shadow-lg" style="left:0%"></div>
+    </div>
+  </div>
+
+  <!-- Gantt Charts -->
+  <div class="glass rounded-xl p-5 space-y-5">
+    <h3 class="font-semibold text-sm flex items-center gap-2">
+      <span class="material-symbols-outlined" style="font-size:16px">view_timeline</span>
+      Gantt Chart — Job Execution Timeline (All 3 Algorithms)
+    </h3>
+
+    <!-- Legend -->
+    <div class="flex gap-4 text-xs text-on-surface-variant flex-wrap">
+      <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-sm inline-block" style="background:#adc6ff"></span> Small (word count)</div>
+      <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-sm inline-block" style="background:#4edea3"></span> Medium (join + aggregate)</div>
+      <div class="flex items-center gap-1"><span class="w-3 h-3 rounded-sm inline-block" style="background:#ffb95f"></span> Large (PageRank iterations)</div>
+    </div>
+
+    <!-- Time axis -->
+    <div class="relative">
+      <div class="flex justify-between text-[9px] mono text-on-surface-variant mb-1 px-1">
+        <span>0s</span><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s</span><span>6s</span><span>7s</span><span>8s</span><span>8.75s</span>
+      </div>
+    </div>
+
+    <!-- FIFO row -->
+    <div>
+      <div class="flex items-center gap-3 mb-1">
+        <div class="w-28 flex-shrink-0 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-error inline-block"></span>
+          <span class="text-xs font-bold text-error">FIFO</span>
+        </div>
+        <span class="text-xs mono text-on-surface-variant">Makespan: <span class="text-error font-bold">8.75s</span></span>
+      </div>
+      <div class="relative" style="height:28px;margin-left:112px">
+        <div id="gantt-fifo" class="gantt-row" style="background:rgba(255,180,171,0.04);border:1px solid rgba(255,180,171,0.1)">
+          <div id="cursor-fifo" style="position:absolute;top:0;bottom:0;width:2px;background:#ffb4ab;opacity:0;z-index:10;box-shadow:0 0 6px #ffb4ab;"></div>
+        </div>
+        <div class="absolute top-0 right-0 bottom-0 w-px bg-error/30"></div>
+      </div>
+    </div>
+
+    <!-- SJF row -->
+    <div>
+      <div class="flex items-center gap-3 mb-1">
+        <div class="w-28 flex-shrink-0 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-tertiary inline-block"></span>
+          <span class="text-xs font-bold text-tertiary">SJF/Adaptive</span>
+        </div>
+        <span class="text-xs mono text-on-surface-variant">Makespan: <span class="text-tertiary font-bold">6.39s</span></span>
+      </div>
+      <div class="relative" style="height:28px;margin-left:112px">
+        <div id="gantt-sjf" class="gantt-row" style="background:rgba(255,185,95,0.04);border:1px solid rgba(255,185,95,0.1)">
+          <div id="cursor-sjf" style="position:absolute;top:0;bottom:0;width:2px;background:#ffb95f;opacity:0;z-index:10;box-shadow:0 0 6px #ffb95f;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASTA row -->
+    <div>
+      <div class="flex items-center gap-3 mb-1">
+        <div class="w-28 flex-shrink-0 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
+          <span class="text-xs font-bold text-secondary">PASTA 🏆</span>
+        </div>
+        <span class="text-xs mono text-on-surface-variant">Makespan: <span class="text-secondary font-bold">6.19s</span></span>
+      </div>
+      <div class="relative" style="height:28px;margin-left:112px">
+        <div id="gantt-pasta" class="gantt-row" style="background:rgba(78,222,163,0.04);border:1px solid rgba(78,222,163,0.1)">
+          <div id="cursor-pasta" style="position:absolute;top:0;bottom:0;width:2px;background:#4edea3;opacity:0;z-index:10;box-shadow:0 0 6px #4edea3;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live stats -->
+  <div class="grid grid-cols-3 gap-4" id="live-stats">
+    <div class="glass rounded-xl p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-2 h-2 rounded-full bg-error inline-block"></span>
+        <span class="text-xs font-bold text-error uppercase tracking-wider">FIFO</span>
+      </div>
+      <div class="space-y-2">
+        <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Jobs Done</span><span class="mono font-bold text-on-surface" id="stat-fifo-done">0 / 15</span></div>
+        <div class="h-1.5 bg-surface-container-high rounded-full"><div id="prog-fifo" class="h-full bg-error rounded-full" style="width:0%"></div></div>
+        <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Current Job</span><span class="mono text-on-surface" id="stat-fifo-current">—</span></div>
+        <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Elapsed</span><span class="mono text-error" id="stat-fifo-elapsed">0.00s</span></div>
+      </div>
+    </div>
+    <div class="glass rounded-xl p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-2 h-2 rounded-full bg-tertiary inline-block"></span>
+        <span class="text-xs font-bold text-tertiary uppercase tracking-wider">SJF / Adaptive</span>
+      </div>
+      <div class="space-y-2">
+        <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Jobs Done</span><span class="mono font-bold text-on-surface" id="stat-sjf-done">0 / 15</span></div>
+        <div class="h-1.5 bg-surface-container-high rounded-full"><div id="prog-sjf" class="h-full bg-tertiary rounded-full" style="width:0%"></div></div>
+        <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Current Job</span><span class="mono text-on-surface" id="stat-sjf-current">—</span></div>
+        <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Elapsed</span><span class="mono text-tertiary" id="stat-sjf-elapsed">0.00s</span></div>
+      </div>
+    </div>
+    <div class="glass rounded-xl p-4 border border-secondary/20">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
+        <span class="text-xs font-bold text-secondary uppercase tracking-wider">PASTA 🏆</span>
+      </div>
+      <div class="space-y-2">
+        <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Jobs Done</span><span class="mono font-bold text-on-surface" id="stat-pasta-done">0 / 15</span></div>
+        <div class="h-1.5 bg-surface-container-high rounded-full"><div id="prog-pasta" class="h-full bg-secondary rounded-full" style="width:0%"></div></div>
+        <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Current Job</span><span class="mono text-on-surface" id="stat-pasta-current">—</span></div>
+        <div class="flex justify-between text-xs"><span class="text-on-surface-variant">Elapsed</span><span class="mono text-secondary" id="stat-pasta-elapsed">0.00s</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Completed jobs table -->
+  <div class="glass rounded-xl overflow-hidden">
+    <div class="px-5 py-3 border-b border-outline-variant/10">
+      <h3 class="font-semibold text-sm flex items-center gap-2">
+        <span class="material-symbols-outlined" style="font-size:16px">task_alt</span>
+        Completed Jobs Log (PASTA Scheduler)
+      </h3>
+    </div>
+    <div class="overflow-x-auto max-h-56">
+      <table class="w-full text-left tbl">
+        <thead>
+          <tr class="bg-surface-container-highest/40 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+            <th class="px-4 py-2">Pos</th><th class="px-4 py-2">Type</th><th class="px-4 py-2 text-right">Size MB</th>
+            <th class="px-4 py-2 text-right">Predicted</th><th class="px-4 py-2 text-right">Actual</th>
+            <th class="px-4 py-2 text-right">Priority</th><th class="px-4 py-2 text-center">Tier</th>
+          </tr>
+        </thead>
+        <tbody id="completed-tbody" class="text-xs mono"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ PAGE 3: PASTA ALGORITHM -->
+<div id="page-pasta" class="page max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+
+  <div>
+    <h1 class="text-3xl font-black text-on-surface">PASTA Algorithm — Deep Dive</h1>
+    <p class="text-sm text-on-surface-variant mt-1">Predictive Adaptive Scheduling with Timed Aging · Three enhancements over pure SJF</p>
+  </div>
+
+  <!-- Priority Formula -->
+  <div class="glass rounded-xl p-6">
+    <h3 class="font-semibold text-sm text-on-surface-variant uppercase tracking-widest mb-4">Priority Formula</h3>
+    <div class="bg-surface-container rounded-xl p-6 text-center space-y-4 border border-outline-variant/20">
+      <div class="text-xl font-bold mono">
+        <span class="text-on-surface">priority</span>
+        <span class="text-outline mx-3">=</span>
+        <span class="f-blue font-black text-2xl">α</span>
+        <span class="text-outline mx-1">×</span>
+        <span class="f-blue">norm_sjf</span>
+        <span class="text-outline mx-3">+</span>
+        <span class="f-orange font-black text-2xl">β</span>
+        <span class="text-outline mx-1">×</span>
+        <span class="f-orange">norm_aging</span>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mt-4 text-sm">
+        <div class="bg-primary/5 border border-primary/20 rounded-lg p-4 text-left">
+          <div class="text-xs font-bold text-primary mb-2">SJF Component (α = 0.70)</div>
+          <div class="mono text-xs text-on-surface-variant mb-2">norm_sjf = 1 − (pred − min_pred) / (max_pred − min_pred + ε)</div>
+          <div class="text-xs text-on-surface-variant">→ <span class="text-primary">1.0</span> for the shortest predicted job, <span class="text-primary">0.0</span> for the longest</div>
+        </div>
+        <div class="bg-tertiary/5 border border-tertiary/20 rounded-lg p-4 text-left">
+          <div class="text-xs font-bold text-tertiary mb-2">Aging Component (β = 0.30)</div>
+          <div class="mono text-xs text-on-surface-variant mb-2">norm_aging = wait_time / (max_wait + ε)</div>
+          <div class="text-xs text-on-surface-variant">→ <span class="text-tertiary">0.0</span> when just arrived, rises toward <span class="text-tertiary">1.0</span> as job waits longer</div>
+        </div>
+      </div>
+      <div class="mt-2 text-xs text-on-surface-variant bg-surface-container-high rounded-lg p-3">
+        <strong class="text-secondary">In batch mode</strong> (all 15 jobs arrive at t=0): wait_time=0 for all → norm_aging=0 → PASTA reduces to <strong>pure SJF</strong>.
+        In streaming mode, aged jobs get a priority boost, preventing starvation of large jobs.
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 Problems → 3 Solutions -->
+  <div class="grid grid-cols-3 gap-4">
+    <div class="glass rounded-xl p-5 border border-error/20">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-error" style="font-size:20px">warning</span>
+        <span class="text-xs font-bold text-error uppercase tracking-widest">Problem 1 · Starvation</span>
+      </div>
+      <p class="text-xs text-on-surface-variant mb-4">In pure SJF, large jobs can <em>wait indefinitely</em> if short jobs keep arriving. A 10-minute PageRank job might never run.</p>
+      <div class="border-t border-outline-variant/10 pt-4">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-secondary" style="font-size:16px">check_circle</span>
+          <span class="text-xs font-bold text-secondary">PASTA Solution</span>
+        </div>
+        <p class="text-xs text-secondary/80">Aging term: as wait_time grows, priority climbs toward 1.0. Every job is <em>guaranteed</em> to eventually reach the top.</p>
+      </div>
+    </div>
+    <div class="glass rounded-xl p-5 border border-error/20">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-error" style="font-size:20px">warning</span>
+        <span class="text-xs font-bold text-error uppercase tracking-widest">Problem 2 · Tier Drift</span>
+      </div>
+      <p class="text-xs text-on-surface-variant mb-4">SJF uses fixed thresholds: small &lt; 10s, large &gt; 60s. On this hardware where all jobs run in 0.1–2s, <em>every job lands in "small"</em> — defeating the purpose.</p>
+      <div class="border-t border-outline-variant/10 pt-4">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-secondary" style="font-size:16px">check_circle</span>
+          <span class="text-xs font-bold text-secondary">PASTA Solution</span>
+        </div>
+        <p class="text-xs text-secondary/80">Dynamic tiers: percentile-based boundaries (p33/p66) adapt to whatever workload is present. Always assigns 3 tiers correctly.</p>
+      </div>
+    </div>
+    <div class="glass rounded-xl p-5 border border-error/20">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="material-symbols-outlined text-error" style="font-size:20px">warning</span>
+        <span class="text-xs font-bold text-error uppercase tracking-widest">Problem 3 · No Learning</span>
+      </div>
+      <p class="text-xs text-on-surface-variant mb-4">SJF uses the model as-is. If predictions are off (e.g., trained on Google Cloud but running locally), errors accumulate and <em>ordering degrades</em>.</p>
+      <div class="border-t border-outline-variant/10 pt-4">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-secondary" style="font-size:16px">check_circle</span>
+          <span class="text-xs font-bold text-secondary">PASTA Solution</span>
+        </div>
+        <p class="text-xs text-secondary/80">Feedback loop: after each run, actual times are appended to raw_metrics.csv and the model retrains. Predictions improve run-over-run.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Priority ranking table -->
+  <div class="glass rounded-xl overflow-hidden">
+    <div class="px-5 py-3 border-b border-outline-variant/10 flex justify-between items-center">
+      <h3 class="font-semibold text-sm flex items-center gap-2">
+        <span class="material-symbols-outlined" style="font-size:16px">format_list_numbered</span>
+        15-Job PASTA Priority Ranking (Actual Run)
+      </h3>
+      <span class="text-xs text-secondary">Higher score = scheduled first</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left tbl">
+        <thead>
+          <tr class="bg-surface-container-highest/40 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+            <th class="px-4 py-2">Pos</th><th class="px-4 py-2">Type</th><th class="px-4 py-2 text-right">Size MB</th>
+            <th class="px-4 py-2 text-right">Predicted</th><th class="px-4 py-2 text-right">Actual</th>
+            <th class="px-4 py-2 text-right">Priority</th><th class="px-4 py-2 text-center">Tier</th>
+            <th class="px-4 py-2 text-center">Shuffle Parts</th><th class="px-4 py-2 text-center">Priority Bar</th>
+          </tr>
+        </thead>
+        <tbody id="pasta-rank-tbody" class="text-xs mono"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Dynamic Tiers visualization -->
+  <div class="glass rounded-xl p-6">
+    <h3 class="font-semibold text-sm text-on-surface-variant uppercase tracking-widest mb-4">Dynamic Tier Boundaries (p33 / p66)</h3>
+    <div class="mb-3 grid grid-cols-3 gap-4 text-xs">
+      <div class="bg-primary/10 border border-primary/20 rounded-lg p-3 text-center">
+        <div class="text-primary font-bold">SMALL tier</div>
+        <div class="text-on-surface-variant mt-1">predicted &lt; p33 = <span class="mono text-primary font-bold">0.53s</span></div>
+        <div class="text-on-surface-variant">shuffle.partitions = 4</div>
+      </div>
+      <div class="bg-secondary/10 border border-secondary/20 rounded-lg p-3 text-center">
+        <div class="text-secondary font-bold">MEDIUM tier</div>
+        <div class="text-on-surface-variant mt-1">0.53s ≤ predicted &lt; p66 = <span class="mono text-secondary font-bold">0.75s</span></div>
+        <div class="text-on-surface-variant">shuffle.partitions = 8</div>
+      </div>
+      <div class="bg-tertiary/10 border border-tertiary/20 rounded-lg p-3 text-center">
+        <div class="text-tertiary font-bold">LARGE tier</div>
+        <div class="text-on-surface-variant mt-1">predicted ≥ p66 = <span class="mono text-tertiary font-bold">0.75s</span></div>
+        <div class="text-on-surface-variant">shuffle.partitions = 16</div>
+      </div>
+    </div>
+    <!-- Number line -->
+    <div class="relative h-12 bg-surface-container rounded-xl overflow-hidden border border-outline-variant/10">
+      <div class="absolute inset-0 flex">
+        <div class="bg-primary/15 flex items-center justify-center text-[10px] text-primary font-bold" style="width:47.6%">SMALL (0–0.53s)</div>
+        <div class="bg-secondary/15 flex items-center justify-center text-[10px] text-secondary font-bold" style="width:19.6%">MEDIUM</div>
+        <div class="bg-tertiary/15 flex items-center justify-center text-[10px] text-tertiary font-bold flex-1">LARGE (&gt;0.75s)</div>
+      </div>
+      <!-- Predicted time dots -->
+      <div id="tier-dots"></div>
+    </div>
+    <div class="flex justify-between text-[9px] mono text-on-surface-variant mt-1 px-1">
+      <span>0.13s</span><span>0.26s</span><span>0.39s</span><span>0.53s p33</span><span>0.66s</span><span>0.75s p66</span><span>1.12s</span>
+    </div>
+  </div>
+
+  <!-- Feedback loop -->
+  <div class="glass rounded-xl p-6">
+    <h3 class="font-semibold text-sm text-on-surface-variant uppercase tracking-widest mb-4">Feedback Loop — How PASTA Learns</h3>
+    <div class="flex items-center gap-3 flex-wrap">
+      <div class="bg-surface-container rounded-lg px-4 py-3 flex flex-col items-center gap-1 min-w-[100px]">
+        <span class="material-symbols-outlined text-primary" style="font-size:24px">queue</span>
+        <span class="text-[10px] font-bold text-primary">Job Spec</span>
+      </div>
+      <span class="material-symbols-outlined text-outline-variant">arrow_forward</span>
+      <div class="bg-surface-container rounded-lg px-4 py-3 flex flex-col items-center gap-1 min-w-[100px]">
+        <span class="material-symbols-outlined text-tertiary" style="font-size:24px">psychology</span>
+        <span class="text-[10px] font-bold text-tertiary">ML Predict</span>
+      </div>
+      <span class="material-symbols-outlined text-outline-variant">arrow_forward</span>
+      <div class="bg-surface-container rounded-lg px-4 py-3 flex flex-col items-center gap-1 min-w-[100px]">
+        <span class="material-symbols-outlined text-secondary" style="font-size:24px">sort</span>
+        <span class="text-[10px] font-bold text-secondary">PASTA Order</span>
+      </div>
+      <span class="material-symbols-outlined text-outline-variant">arrow_forward</span>
+      <div class="bg-surface-container rounded-lg px-4 py-3 flex flex-col items-center gap-1 min-w-[100px]">
+        <span class="material-symbols-outlined text-on-surface" style="font-size:24px">bolt</span>
+        <span class="text-[10px] font-bold text-on-surface">Run Jobs</span>
+      </div>
+      <span class="material-symbols-outlined text-outline-variant">arrow_forward</span>
+      <div class="bg-surface-container rounded-lg px-4 py-3 flex flex-col items-center gap-1 min-w-[100px]">
+        <span class="material-symbols-outlined text-tertiary" style="font-size:24px">timer</span>
+        <span class="text-[10px] font-bold text-tertiary">Record Actual</span>
+      </div>
+      <span class="material-symbols-outlined text-outline-variant">arrow_forward</span>
+      <div class="bg-surface-container rounded-lg px-4 py-3 flex flex-col items-center gap-1 min-w-[100px]">
+        <span class="material-symbols-outlined text-secondary" style="font-size:24px">model_training</span>
+        <span class="text-[10px] font-bold text-secondary">Retrain Model</span>
+      </div>
+      <span class="material-symbols-outlined text-outline-variant">arrow_forward</span>
+      <div class="bg-secondary/10 border border-secondary/20 rounded-lg px-4 py-3 flex flex-col items-center gap-1 min-w-[100px]">
+        <span class="material-symbols-outlined text-secondary fill-icon" style="font-size:24px">trending_up</span>
+        <span class="text-[10px] font-bold text-secondary">Better Predictions</span>
+      </div>
+    </div>
+    <div class="mt-4 text-xs text-on-surface-variant bg-surface-container rounded-lg p-3 border border-outline-variant/10">
+      Run <code class="text-secondary bg-surface-container-high px-1 rounded">python -m benchmark.runner --mode pasta --feedback</code> to trigger feedback.
+      Appends 15 rows to <code class="text-primary bg-surface-container-high px-1 rounded">data/raw_metrics.csv</code> then calls
+      <code class="text-primary bg-surface-container-high px-1 rounded">model/train.py</code> automatically.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ PAGE 4: HOW SPARK WORKS -->
+<div id="page-spark" class="page max-w-[1600px] mx-auto px-6 py-6 space-y-6">
+
+  <div>
+    <h1 class="text-3xl font-black text-on-surface">How Apache Spark Works</h1>
+    <p class="text-sm text-on-surface-variant mt-1">Understanding the distributed computing engine powering our scheduler</p>
+  </div>
+
+  <!-- Architecture diagram -->
+  <div class="glass rounded-xl p-6">
+    <h3 class="font-semibold text-sm text-on-surface-variant uppercase tracking-widest mb-5">Spark Architecture — Driver + Executors</h3>
+    <div class="flex items-start gap-4 overflow-x-auto pb-2">
+      <!-- Driver -->
+      <div class="min-w-[160px] bg-primary/10 border border-primary/30 rounded-xl p-4 flex flex-col items-center gap-2">
+        <span class="material-symbols-outlined text-primary fill-icon" style="font-size:32px">computer</span>
+        <span class="text-xs font-black text-primary">Driver Program</span>
+        <div class="text-[10px] text-center text-on-surface-variant space-y-1">
+          <div>SparkContext</div>
+          <div>DAG Scheduler</div>
+          <div>Task Scheduler</div>
+          <div class="bg-primary/20 rounded px-1 mt-1">Your main() code</div>
+        </div>
+      </div>
+      <div class="flex flex-col items-center justify-center h-full pt-12">
+        <div class="text-[10px] text-on-surface-variant mb-1 mono">submit tasks</div>
+        <span class="material-symbols-outlined text-outline-variant" style="font-size:24px">arrow_forward</span>
+      </div>
+      <!-- Cluster Manager -->
+      <div class="min-w-[160px] bg-tertiary/10 border border-tertiary/30 rounded-xl p-4 flex flex-col items-center gap-2">
+        <span class="material-symbols-outlined text-tertiary fill-icon" style="font-size:32px">hub</span>
+        <span class="text-xs font-black text-tertiary">Cluster Manager</span>
+        <div class="text-[10px] text-center text-on-surface-variant space-y-1">
+          <div>YARN / Mesos / K8s</div>
+          <div class="font-bold text-on-surface">or local[*]</div>
+          <div>Allocates resources</div>
+          <div class="bg-tertiary/20 rounded px-1 mt-1">Our mode: local[*]</div>
+        </div>
+      </div>
+      <div class="flex flex-col items-center justify-center h-full pt-12">
+        <div class="text-[10px] text-on-surface-variant mb-1 mono">launch</div>
+        <span class="material-symbols-outlined text-outline-variant" style="font-size:24px">arrow_forward</span>
+      </div>
+      <!-- Workers -->
+      <div class="flex flex-col gap-3">
+        <div class="min-w-[180px] bg-secondary/10 border border-secondary/30 rounded-xl p-4 flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-secondary" style="font-size:20px">memory</span>
+            <span class="text-xs font-black text-secondary">Worker Node 1</span>
+          </div>
+          <div class="text-[10px] text-on-surface-variant space-y-1">
+            <div>Executor JVM process</div>
+            <div>Task 1 · Task 2 · Task 3</div>
+            <div>Partition cache (RAM)</div>
+          </div>
+        </div>
+        <div class="min-w-[180px] bg-secondary/10 border border-secondary/20 rounded-xl p-4 flex flex-col gap-2 opacity-60">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-secondary/60" style="font-size:20px">memory</span>
+            <span class="text-xs font-bold text-secondary/60">Worker Node 2</span>
+          </div>
+          <div class="text-[10px] text-on-surface-variant">Task 4 · Task 5 …</div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-4 text-xs text-on-surface-variant bg-surface-container rounded-lg p-3 border border-outline-variant/10">
+      In <strong class="text-on-surface">local[*] mode</strong> (our benchmark): Driver = Worker = same JVM. All CPU cores used as "executors". No network overhead.
+      <code class="text-primary bg-surface-container-high px-1 rounded">spark.executor.memory</code> is set at startup and <strong class="text-error">cannot change mid-session</strong>.
+      Only <code class="text-secondary bg-surface-container-high px-1 rounded">spark.sql.shuffle.partitions</code> and <code class="text-secondary bg-surface-container-high px-1 rounded">spark.scheduler.pool</code> can be changed per-job.
+    </div>
+  </div>
+
+  <!-- Job → Stage → Task -->
+  <div class="glass rounded-xl p-6">
+    <h3 class="font-semibold text-sm text-on-surface-variant uppercase tracking-widest mb-4">Job → Stage → Task Hierarchy</h3>
+    <div class="grid grid-cols-3 gap-4">
+      <div class="bg-primary/5 border border-primary/20 rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="material-symbols-outlined text-primary fill-icon" style="font-size:22px">workspaces</span>
+          <span class="text-sm font-bold text-primary">JOB</span>
+        </div>
+        <p class="text-xs text-on-surface-variant">Triggered by a Spark <em>action</em>: <code class="text-primary">count()</code>, <code class="text-primary">collect()</code>, <code class="text-primary">saveAsTextFile()</code>. One action = one Job.</p>
+        <div class="mt-3 space-y-1">
+          <div class="bg-surface-container rounded p-2 text-[10px] mono text-on-surface-variant">df.count() → Job #1</div>
+          <div class="bg-surface-container rounded p-2 text-[10px] mono text-on-surface-variant">df.write.csv() → Job #2</div>
+        </div>
+      </div>
+      <div class="bg-tertiary/5 border border-tertiary/20 rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="material-symbols-outlined text-tertiary fill-icon" style="font-size:22px">stacked_bar_chart</span>
+          <span class="text-sm font-bold text-tertiary">STAGES</span>
+        </div>
+        <p class="text-xs text-on-surface-variant">Jobs split at <em>shuffle boundaries</em> (groupBy, join, sort). Data must be redistributed across partitions between stages.</p>
+        <div class="mt-3 space-y-1">
+          <div class="bg-surface-container rounded p-2 text-[10px] mono text-on-surface-variant">Stage 0: map/filter (no shuffle)</div>
+          <div class="bg-surface-container rounded p-2 text-[10px] mono text-on-surface-variant">Stage 1: reduceByKey (shuffle!)</div>
+          <div class="bg-surface-container rounded p-2 text-[10px] mono text-on-surface-variant">Stage 2: collect result</div>
+        </div>
+      </div>
+      <div class="bg-secondary/5 border border-secondary/20 rounded-xl p-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="material-symbols-outlined text-secondary fill-icon" style="font-size:22px">task</span>
+          <span class="text-sm font-bold text-secondary">TASKS</span>
+        </div>
+        <p class="text-xs text-on-surface-variant">Each stage runs one <em>task per partition</em>. More partitions = more parallelism. <code class="text-secondary">spark.sql.shuffle.partitions</code> controls this.</p>
+        <div class="mt-3 space-y-1">
+          <div class="bg-surface-container rounded p-2 text-[10px] text-on-surface-variant">4 partitions → 4 tasks/stage</div>
+          <div class="bg-surface-container rounded p-2 text-[10px] text-on-surface-variant">8 partitions → 8 tasks/stage</div>
+          <div class="bg-surface-container rounded p-2 text-[10px] text-secondary">PASTA sets 4/8/16 per tier ✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scheduling modes comparison -->
+  <div class="glass rounded-xl p-6">
+    <h3 class="font-semibold text-sm text-on-surface-variant uppercase tracking-widest mb-4">Spark Scheduling Modes — FIFO vs FAIR vs PASTA</h3>
+    <div class="grid grid-cols-3 gap-4">
+      <div class="bg-error/5 border border-error/20 rounded-xl p-4">
+        <div class="text-xs font-black text-error uppercase tracking-widest mb-3 flex items-center gap-2">
+          <span class="material-symbols-outlined" style="font-size:16px">queue</span> FIFO Mode
+        </div>
+        <div class="space-y-2 mb-3">
+          <div class="flex items-center gap-2"><div class="w-12 h-5 bg-error/60 rounded text-[9px] flex items-center justify-center text-on-primary">Job A</div><span class="text-[9px] text-on-surface-variant">large (2min)</span></div>
+          <div class="flex items-center gap-2"><div class="w-5 h-5 bg-primary/40 rounded text-[9px] flex items-center justify-center">B</div><span class="text-[9px] text-on-surface-variant">small (0.1s) ← BLOCKED!</span></div>
+          <div class="flex items-center gap-2"><div class="w-5 h-5 bg-primary/40 rounded text-[9px] flex items-center justify-center">C</div><span class="text-[9px] text-on-surface-variant">small ← BLOCKED!</span></div>
+        </div>
+        <p class="text-[10px] text-on-surface-variant">Jobs A blocks B and C (Convoy Effect). Small jobs wait behind large jobs regardless of urgency.</p>
+      </div>
+      <div class="bg-tertiary/5 border border-tertiary/20 rounded-xl p-4">
+        <div class="text-xs font-black text-tertiary uppercase tracking-widest mb-3 flex items-center gap-2">
+          <span class="material-symbols-outlined" style="font-size:16px">account_tree</span> FAIR Pools
+        </div>
+        <div class="space-y-1 mb-3">
+          <div class="bg-surface-container rounded p-1.5 text-[9px]">small_pool: weight 3 → <span class="text-primary">4 partitions</span></div>
+          <div class="bg-surface-container rounded p-1.5 text-[9px]">medium_pool: weight 2 → <span class="text-secondary">8 partitions</span></div>
+          <div class="bg-surface-container rounded p-1.5 text-[9px]">large_pool: weight 1 → <span class="text-tertiary">16 partitions</span></div>
+        </div>
+        <p class="text-[10px] text-on-surface-variant">PASTA uses FAIR scheduler with 3 pools. Higher-weight pools get more executor slots. Set via <code class="text-tertiary">fairscheduler.xml</code>.</p>
+      </div>
+      <div class="bg-secondary/5 border border-secondary/20 rounded-xl p-4">
+        <div class="text-xs font-black text-secondary uppercase tracking-widest mb-3 flex items-center gap-2">
+          <span class="material-symbols-outlined fill-icon" style="font-size:16px">auto_awesome</span> PASTA Mode
+        </div>
+        <div class="space-y-1 mb-3">
+          <div class="flex items-center gap-1"><span class="text-[9px] bg-primary/20 text-primary rounded px-1">priority=0.70</span><span class="text-[9px] text-on-surface-variant ml-1">small job → runs first</span></div>
+          <div class="flex items-center gap-1"><span class="text-[9px] bg-secondary/20 text-secondary rounded px-1">priority=0.42</span><span class="text-[9px] text-on-surface-variant ml-1">medium job</span></div>
+          <div class="flex items-center gap-1 relative"><span class="text-[9px] bg-tertiary/20 text-tertiary rounded px-1">priority=0.00 → 0.85</span><span class="text-[9px] text-secondary ml-1">aging kicks in!</span></div>
+        </div>
+        <p class="text-[10px] text-on-surface-variant">Large job priority rises over time via aging. Eventually overtakes small jobs and gets scheduled. No starvation.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ML Pipeline -->
+  <div class="glass rounded-xl p-6">
+    <h3 class="font-semibold text-sm text-on-surface-variant uppercase tracking-widest mb-4">ML Prediction Pipeline — 5 Features → Execution Time</h3>
+    <div class="grid grid-cols-5 gap-3 mb-4">
+      <div class="bg-surface-container rounded-lg p-3 text-center border border-outline-variant/10">
+        <div class="text-lg font-black text-primary mono">MB</div>
+        <div class="text-[9px] text-on-surface-variant mt-1">input_size_mb</div>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 text-center border border-outline-variant/10">
+        <div class="text-lg font-black text-secondary mono">P</div>
+        <div class="text-[9px] text-on-surface-variant mt-1">num_partitions</div>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 text-center border border-outline-variant/10">
+        <div class="text-lg font-black text-tertiary mono">type</div>
+        <div class="text-[9px] text-on-surface-variant mt-1">job_type_encoded</div>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 text-center border border-outline-variant/10">
+        <div class="text-lg font-black text-primary mono">H</div>
+        <div class="text-[9px] text-on-surface-variant mt-1">hour_of_day</div>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 text-center border border-outline-variant/10">
+        <div class="text-lg font-black text-secondary mono">T</div>
+        <div class="text-[9px] text-on-surface-variant mt-1">num_tasks</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 flex-wrap">
+      <div class="flex gap-2 items-center">
+        <span class="material-symbols-outlined text-on-surface-variant" style="font-size:18px">arrow_forward</span>
+        <div class="bg-tertiary/10 border border-tertiary/20 rounded-lg px-4 py-2 text-xs">
+          <div class="text-tertiary font-bold">Random Forest</div>
+          <div class="text-on-surface-variant text-[10px]">300 trees · depth 12</div>
+        </div>
+      </div>
+      <div class="flex gap-2 items-center">
+        <span class="text-on-surface-variant text-xs">+</span>
+        <div class="bg-secondary/10 border border-secondary/20 rounded-lg px-4 py-2 text-xs">
+          <div class="text-secondary font-bold">XGBoost ✓ Best</div>
+          <div class="text-on-surface-variant text-[10px]">500 trees · η=0.03</div>
+        </div>
+      </div>
+      <span class="material-symbols-outlined text-on-surface-variant" style="font-size:18px">arrow_forward</span>
+      <div class="bg-surface-container border border-outline-variant/20 rounded-lg px-4 py-2 text-xs">
+        <div class="text-on-surface font-bold mono">log1p(y) → expm1(ŷ)</div>
+        <div class="text-on-surface-variant text-[10px]">log-transform → predicted seconds</div>
+      </div>
+      <span class="material-symbols-outlined text-on-surface-variant" style="font-size:18px">arrow_forward</span>
+      <div class="bg-secondary/10 border border-secondary/20 rounded-lg px-4 py-2 text-xs text-center">
+        <div class="text-secondary font-bold">PASTA Priority</div>
+        <div class="text-on-surface-variant text-[10px]">α×norm_sjf + β×norm_aging</div>
+      </div>
+    </div>
+    <div class="mt-4 grid grid-cols-2 gap-4 text-xs">
+      <div class="bg-surface-container rounded-lg p-3 border border-outline-variant/10">
+        <div class="font-bold text-on-surface mb-2">Model Metrics (after feedback loop)</div>
+        <div class="space-y-1 mono text-on-surface-variant">
+          <div class="flex justify-between"><span>XGBoost MAE</span><span class="text-secondary">0.24s</span></div>
+          <div class="flex justify-between"><span>XGBoost R²</span><span class="text-secondary">0.23</span></div>
+          <div class="flex justify-between"><span>RF MAE</span><span class="text-on-surface">0.24s</span></div>
+          <div class="flex justify-between"><span>RF R²</span><span class="text-on-surface">0.14</span></div>
+        </div>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 border border-outline-variant/10">
+        <div class="font-bold text-on-surface mb-2">Why log1p transform?</div>
+        <p class="text-on-surface-variant leading-relaxed">Execution times are <em>right-skewed</em> — a few long jobs dominate. log1p compresses the range, making predictions more accurate. <code class="text-secondary">expm1()</code> reverses it at inference time.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════ JAVASCRIPT -->
+<script>
+// ── Benchmark Data (real runs) ────────────────────────────────────────────────
+const FIFO = [
+  {job_type:"medium",input_size_mb:1.5,num_partitions:2,actual_time:2.0858,start_ts:0,end_ts:2.0859},
+  {job_type:"large",input_size_mb:0.6,num_partitions:2,actual_time:1.216,start_ts:2.0859,end_ts:3.3019},
+  {job_type:"medium",input_size_mb:1.5,num_partitions:2,actual_time:0.2671,start_ts:3.3019,end_ts:3.5689},
+  {job_type:"medium",input_size_mb:15.0,num_partitions:8,actual_time:0.7684,start_ts:3.569,end_ts:4.3374},
+  {job_type:"large",input_size_mb:0.06,num_partitions:8,actual_time:0.6643,start_ts:4.3374,end_ts:5.0017},
+  {job_type:"large",input_size_mb:0.06,num_partitions:8,actual_time:0.4221,start_ts:5.0017,end_ts:5.4238},
+  {job_type:"medium",input_size_mb:6.0,num_partitions:8,actual_time:0.5449,start_ts:5.4239,end_ts:5.9688},
+  {job_type:"small",input_size_mb:2.0,num_partitions:4,actual_time:0.0815,start_ts:5.9688,end_ts:6.0503},
+  {job_type:"medium",input_size_mb:1.5,num_partitions:4,actual_time:0.2113,start_ts:6.0503,end_ts:6.2617},
+  {job_type:"small",input_size_mb:5.0,num_partitions:4,actual_time:0.1133,start_ts:6.2617,end_ts:6.375},
+  {job_type:"small",input_size_mb:5.0,num_partitions:4,actual_time:0.1083,start_ts:6.375,end_ts:6.4833},
+  {job_type:"large",input_size_mb:0.6,num_partitions:2,actual_time:0.3255,start_ts:6.4834,end_ts:6.8089},
+  {job_type:"small",input_size_mb:10.0,num_partitions:4,actual_time:0.1707,start_ts:6.8089,end_ts:6.9796},
+  {job_type:"small",input_size_mb:10.0,num_partitions:4,actual_time:0.1665,start_ts:6.9797,end_ts:7.1462},
+  {job_type:"large",input_size_mb:0.06,num_partitions:4,actual_time:0.5966,start_ts:7.1462,end_ts:7.7428},
+];
+const SJF = [
+  {job_type:"small",input_size_mb:2.0,num_partitions:4,predicted_time:0.135,actual_time:0.2753,tier:"small",start_ts:0.0019,end_ts:0.2772},
+  {job_type:"small",input_size_mb:10.0,num_partitions:4,predicted_time:0.2578,actual_time:0.1626,tier:"small",start_ts:0.2775,end_ts:0.4401},
+  {job_type:"small",input_size_mb:10.0,num_partitions:4,predicted_time:0.2578,actual_time:0.1577,tier:"small",start_ts:0.4403,end_ts:0.598},
+  {job_type:"small",input_size_mb:5.0,num_partitions:4,predicted_time:0.2942,actual_time:0.1039,tier:"small",start_ts:0.5983,end_ts:0.7022},
+  {job_type:"small",input_size_mb:5.0,num_partitions:4,predicted_time:0.2942,actual_time:0.0992,tier:"small",start_ts:0.7025,end_ts:0.8017},
+  {job_type:"medium",input_size_mb:1.5,num_partitions:4,predicted_time:0.529,actual_time:0.2751,tier:"small",start_ts:0.8019,end_ts:1.0771},
+  {job_type:"medium",input_size_mb:1.5,num_partitions:2,predicted_time:0.5839,actual_time:0.2011,tier:"small",start_ts:1.0774,end_ts:1.2785},
+  {job_type:"medium",input_size_mb:1.5,num_partitions:2,predicted_time:0.5839,actual_time:0.1994,tier:"small",start_ts:1.2787,end_ts:1.4781},
+  {job_type:"large",input_size_mb:0.06,num_partitions:4,predicted_time:0.646,actual_time:0.6286,tier:"small",start_ts:1.4784,end_ts:2.1071},
+  {job_type:"large",input_size_mb:0.6,num_partitions:2,predicted_time:0.6885,actual_time:0.7545,tier:"small",start_ts:2.1073,end_ts:2.8618},
+  {job_type:"large",input_size_mb:0.6,num_partitions:2,predicted_time:0.6885,actual_time:0.3158,tier:"small",start_ts:2.8621,end_ts:3.1779},
+  {job_type:"large",input_size_mb:0.06,num_partitions:8,predicted_time:0.7524,actual_time:0.5742,tier:"small",start_ts:3.1781,end_ts:3.7523},
+  {job_type:"large",input_size_mb:0.06,num_partitions:8,predicted_time:0.7524,actual_time:0.3773,tier:"small",start_ts:3.7527,end_ts:4.13},
+  {job_type:"medium",input_size_mb:6.0,num_partitions:8,predicted_time:1.022,actual_time:0.4721,tier:"small",start_ts:4.1303,end_ts:4.6024},
+  {job_type:"medium",input_size_mb:15.0,num_partitions:8,predicted_time:1.1191,actual_time:0.5949,tier:"small",start_ts:4.6027,end_ts:5.1976},
+];
+const PASTA = [
+  {job_type:"small",input_size_mb:2.0,num_partitions:4,predicted_time:0.135,actual_time:0.2599,priority:0.7,tier:"small",start_ts:0.0015,end_ts:0.2615},
+  {job_type:"small",input_size_mb:10.0,num_partitions:4,predicted_time:0.2578,actual_time:0.1761,priority:0.612651,tier:"small",start_ts:0.2618,end_ts:0.4379},
+  {job_type:"small",input_size_mb:10.0,num_partitions:4,predicted_time:0.2578,actual_time:0.161,priority:0.612651,tier:"small",start_ts:0.4382,end_ts:0.5991},
+  {job_type:"small",input_size_mb:5.0,num_partitions:4,predicted_time:0.2942,actual_time:0.0946,priority:0.586759,tier:"small",start_ts:0.5993,end_ts:0.6939},
+  {job_type:"small",input_size_mb:5.0,num_partitions:4,predicted_time:0.2942,actual_time:0.0936,priority:0.586759,tier:"small",start_ts:0.6941,end_ts:0.7877},
+  {job_type:"medium",input_size_mb:1.5,num_partitions:4,predicted_time:0.529,actual_time:0.2382,priority:0.419744,tier:"medium",start_ts:0.7879,end_ts:1.0261},
+  {job_type:"medium",input_size_mb:1.5,num_partitions:2,predicted_time:0.5839,actual_time:0.1881,priority:0.380693,tier:"medium",start_ts:1.0263,end_ts:1.2143},
+  {job_type:"medium",input_size_mb:1.5,num_partitions:2,predicted_time:0.5839,actual_time:0.1876,priority:0.380693,tier:"medium",start_ts:1.2146,end_ts:1.4021},
+  {job_type:"large",input_size_mb:0.06,num_partitions:4,predicted_time:0.646,actual_time:0.5692,priority:0.336521,tier:"medium",start_ts:1.4023,end_ts:1.9715},
+  {job_type:"large",input_size_mb:0.6,num_partitions:2,predicted_time:0.6885,actual_time:0.7382,priority:0.30629,tier:"medium",start_ts:1.9718,end_ts:2.71},
+  {job_type:"large",input_size_mb:0.6,num_partitions:2,predicted_time:0.6885,actual_time:0.3102,priority:0.30629,tier:"medium",start_ts:2.7102,end_ts:3.0204},
+  {job_type:"large",input_size_mb:0.06,num_partitions:8,predicted_time:0.7524,actual_time:0.5458,priority:0.260837,tier:"large",start_ts:3.0207,end_ts:3.5665},
+  {job_type:"large",input_size_mb:0.06,num_partitions:8,predicted_time:0.7524,actual_time:0.3703,priority:0.260837,tier:"large",start_ts:3.571,end_ts:3.9413},
+  {job_type:"medium",input_size_mb:6.0,num_partitions:8,predicted_time:1.022,actual_time:0.4846,priority:0.069068,tier:"large",start_ts:3.9416,end_ts:4.4262},
+  {job_type:"medium",input_size_mb:15.0,num_partitions:8,predicted_time:1.1191,actual_time:0.6076,priority:0.0,tier:"large",start_ts:4.4264,end_ts:5.034},
+];
+const MAX_T = 8.75;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const typeColor = t => t==='small'?'#adc6ff':t==='medium'?'#4edea3':'#ffb95f';
+const typeChip = t => {
+  const c = typeColor(t);
+  return `<span style="background:${c}22;color:${c};border:1px solid ${c}44" class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">${t}</span>`;
+};
+const tierChip = tier => {
+  const cols = {small:'#adc6ff',medium:'#4edea3',large:'#ffb95f'};
+  const c = cols[tier]||'#adc6ff';
+  return `<span style="background:${c}22;color:${c};border:1px solid ${c}44" class="text-[10px] font-bold px-2 py-0.5 rounded-full">${tier}</span>`;
+};
+const fmtT = t => t.toFixed(3)+'s';
+
+// ── Page navigation ───────────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active','page-anim'));
+  document.querySelectorAll('.nav-link').forEach(n=>n.classList.remove('active'));
+  const pg = document.getElementById('page-'+id);
+  pg.classList.add('active','page-anim');
+  document.getElementById('nav-'+id).classList.add('active');
+  if(id==='overview') initOverview();
+  if(id==='pasta') initPasta();
+}
+
+// ── Overview: job table + bar chart animation ─────────────────────────────────
+function initOverview() {
+  const tbody = document.getElementById('job-tbody');
+  if(tbody.children.length>0) return;
+  FIFO.forEach((f,i)=>{
+    const s=SJF[i]||{actual_time:0};
+    const p=PASTA[i]||{actual_time:0,tier:'—'};
+    const tr=document.createElement('tr');
+    tr.className='border-b border-outline-variant/5 hover:bg-surface-container/60 transition-colors';
+    tr.innerHTML=`
+      <td class="px-4 py-2 text-primary">${i+1}</td>
+      <td class="px-4 py-2">${typeChip(f.job_type)}</td>
+      <td class="px-4 py-2 text-right text-on-surface-variant">${f.input_size_mb}</td>
+      <td class="px-4 py-2 text-right text-on-surface-variant">${f.num_partitions}</td>
+      <td class="px-4 py-2 text-center text-error">${fmtT(f.actual_time)}</td>
+      <td class="px-4 py-2 text-center text-tertiary">${s.actual_time?fmtT(s.actual_time):'—'}</td>
+      <td class="px-4 py-2 text-center text-secondary">${p.actual_time?fmtT(p.actual_time):'—'}</td>
+      <td class="px-4 py-2 text-center">${tierChip(p.tier||'—')}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  // Animate speedup bars
+  setTimeout(()=>{
+    document.querySelectorAll('.speedup-bar').forEach(b=>{
+      b.style.width='0%';
+      setTimeout(()=>{b.style.transition='width 1.2s ease';b.style.width=b.dataset.width+'%';},100);
+    });
+  },200);
+}
+
+// ── Gantt init ────────────────────────────────────────────────────────────────
+function buildGantt(containerId, jobs, col) {
+  const c = document.getElementById(containerId);
+  // Remove old bars except cursor
+  Array.from(c.querySelectorAll('.bar')).forEach(b=>b.remove());
+  jobs.forEach((j,i)=>{
+    const bar=document.createElement('div');
+    bar.className='bar';
+    bar.style.cssText=`
+      position:absolute;
+      left:${(j.start_ts/MAX_T)*100}%;
+      width:${Math.max(0.4,((j.end_ts-j.start_ts)/MAX_T)*100)}%;
+      top:3px; bottom:3px;
+      background:${typeColor(j.job_type)};
+      border-radius:3px;
+      opacity:0.2;
+      transition:opacity 0.3s;
+      z-index:1;
+    `;
+    bar.title=`${j.job_type} · ${j.input_size_mb}MB · ${fmtT(j.actual_time)}`;
+    c.appendChild(bar);
+  });
+}
+
+function updateGanttCursor(t) {
+  ['fifo','sjf','pasta'].forEach(alg=>{
+    const cur=document.getElementById('cursor-'+alg);
+    const pct=(t/MAX_T)*100;
+    cur.style.left=pct+'%';
+    cur.style.opacity=t>0?'1':'0';
+  });
+  const datasets={fifo:FIFO,sjf:SJF,pasta:PASTA};
+  ['fifo','sjf','pasta'].forEach(alg=>{
+    const c=document.getElementById('gantt-'+alg);
+    const bars=c.querySelectorAll('.bar');
+    const jobs=datasets[alg];
+    jobs.forEach((j,i)=>{
+      const bar=bars[i];
+      if(!bar) return;
+      if(j.end_ts<=t) bar.style.opacity='1';
+      else if(j.start_ts<=t && j.end_ts>t) { bar.style.opacity='0.9'; }
+      else bar.style.opacity='0.15';
+    });
+  });
+}
+
+// ── Simulation engine ─────────────────────────────────────────────────────────
+let simTimer=null, simTime=0, simRunning=false;
+
+function countDone(jobs,t){ return jobs.filter(j=>j.end_ts<=t).length; }
+function currentJob(jobs,t){
+  const j=jobs.find(j=>j.start_ts<=t&&j.end_ts>t);
+  return j?`${j.job_type} ${j.input_size_mb}MB`:'—';
+}
+
+function updateStats(t) {
+  document.getElementById('current-time-display').textContent=t.toFixed(2)+'s';
+  const pct=(t/MAX_T)*100;
+  document.getElementById('scrubber-fill').style.width=pct+'%';
+  document.getElementById('scrubber-dot').style.left=`calc(${pct}% - 8px)`;
+
+  const fd=countDone(FIFO,t),sd=countDone(SJF,t),pd=countDone(PASTA,t);
+  document.getElementById('stat-fifo-done').textContent=fd+' / 15';
+  document.getElementById('stat-sjf-done').textContent=sd+' / 15';
+  document.getElementById('stat-pasta-done').textContent=pd+' / 15';
+  document.getElementById('prog-fifo').style.width=(fd/15*100)+'%';
+  document.getElementById('prog-sjf').style.width=(sd/15*100)+'%';
+  document.getElementById('prog-pasta').style.width=(pd/15*100)+'%';
+  document.getElementById('stat-fifo-current').textContent=currentJob(FIFO,t);
+  document.getElementById('stat-sjf-current').textContent=currentJob(SJF,t);
+  document.getElementById('stat-pasta-current').textContent=currentJob(PASTA,t);
+  // Elapsed = actual time up to cursor for each algo
+  document.getElementById('stat-fifo-elapsed').textContent=Math.min(t,8.75).toFixed(2)+'s';
+  document.getElementById('stat-sjf-elapsed').textContent=Math.min(t,6.39).toFixed(2)+'s';
+  document.getElementById('stat-pasta-elapsed').textContent=Math.min(t,6.19).toFixed(2)+'s';
+
+  updateGanttCursor(t);
+
+  // Completed log
+  const tbody=document.getElementById('completed-tbody');
+  tbody.innerHTML='';
+  PASTA.filter(j=>j.end_ts<=t).forEach((j,i)=>{
+    const tr=document.createElement('tr');
+    tr.className='border-b border-outline-variant/5';
+    tr.innerHTML=`
+      <td class="px-4 py-1.5 text-secondary">${i+1}</td>
+      <td class="px-4 py-1.5">${typeChip(j.job_type)}</td>
+      <td class="px-4 py-1.5 text-right text-on-surface-variant">${j.input_size_mb}</td>
+      <td class="px-4 py-1.5 text-right text-on-surface-variant">${fmtT(j.predicted_time)}</td>
+      <td class="px-4 py-1.5 text-right text-on-surface">${fmtT(j.actual_time)}</td>
+      <td class="px-4 py-1.5 text-right text-secondary">${j.priority.toFixed(4)}</td>
+      <td class="px-4 py-1.5 text-center">${tierChip(j.tier)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function startSimulation() {
+  if(simRunning) return;
+  simRunning=true;
+  document.getElementById('btn-play').disabled=true;
+  document.getElementById('btn-pause').disabled=false;
+  const speed=parseFloat(document.getElementById('speed-select').value)||1;
+  const fps=60, dt=MAX_T/(fps*10/speed);
+  simTimer=setInterval(()=>{
+    simTime=Math.min(simTime+dt*speed,MAX_T);
+    updateStats(simTime);
+    if(simTime>=MAX_T) { clearInterval(simTimer); simRunning=false; document.getElementById('btn-play').disabled=false; }
+  },1000/fps);
+}
+function pauseSimulation() {
+  clearInterval(simTimer); simRunning=false;
+  document.getElementById('btn-play').disabled=false;
+  document.getElementById('btn-pause').disabled=true;
+}
+function resetSimulation() {
+  pauseSimulation(); simTime=0;
+  updateStats(0);
+  document.getElementById('btn-pause').disabled=true;
+}
+
+// ── PASTA page init ───────────────────────────────────────────────────────────
+function initPasta() {
+  // Ranking table
+  const tbody=document.getElementById('pasta-rank-tbody');
+  if(tbody.children.length>0) return;
+  PASTA.forEach((j,i)=>{
+    const parts={small:'4',medium:'8',large:'16'}[j.tier]||'?';
+    const pw=Math.round(j.priority*100);
+    const tr=document.createElement('tr');
+    tr.className='border-b border-outline-variant/5';
+    tr.innerHTML=`
+      <td class="px-4 py-2 text-secondary font-bold">${i+1}</td>
+      <td class="px-4 py-2">${typeChip(j.job_type)}</td>
+      <td class="px-4 py-2 text-right text-on-surface-variant">${j.input_size_mb}</td>
+      <td class="px-4 py-2 text-right text-tertiary">${fmtT(j.predicted_time)}</td>
+      <td class="px-4 py-2 text-right text-on-surface">${fmtT(j.actual_time)}</td>
+      <td class="px-4 py-2 text-right text-secondary font-bold">${j.priority.toFixed(4)}</td>
+      <td class="px-4 py-2 text-center">${tierChip(j.tier)}</td>
+      <td class="px-4 py-2 text-center text-on-surface mono">${parts}</td>
+      <td class="px-4 py-2" style="min-width:100px">
+        <div class="h-2 bg-surface-container-high rounded-full overflow-hidden">
+          <div style="width:${pw}%;background:${typeColor(j.job_type)}" class="h-full rounded-full"></div>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Tier dots on number line
+  const dotContainer=document.getElementById('tier-dots');
+  dotContainer.innerHTML='';
+  const minP=0.135,maxP=1.1191;
+  PASTA.forEach(j=>{
+    const pct=((j.predicted_time-minP)/(maxP-minP))*100;
+    const dot=document.createElement('div');
+    dot.style.cssText=`position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);width:8px;height:8px;border-radius:50%;background:${typeColor(j.job_type)};border:1.5px solid rgba(5,20,36,0.8);z-index:5;`;
+    dot.title=`${j.job_type} · pred=${fmtT(j.predicted_time)}`;
+    dotContainer.appendChild(dot);
+  });
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  initOverview();
+  // Build gantt bars (for simulation page)
+  buildGantt('gantt-fifo',FIFO,'#ffb4ab');
+  buildGantt('gantt-sjf',SJF,'#ffb95f');
+  buildGantt('gantt-pasta',PASTA,'#4edea3');
+});
+</script>
+</body>
+</html>

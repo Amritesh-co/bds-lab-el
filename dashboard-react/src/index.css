@@ -1,0 +1,275 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { font-family: 'Inter', sans-serif; }
+  body {
+    background-color: #051424;
+    color: #d4e4fa;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  #root { width: 100%; min-height: 100vh; }
+
+  * { box-sizing: border-box; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #273647; border-radius: 4px; }
+}
+
+@layer components {
+  .glass {
+    background: rgba(18, 33, 49, 0.6);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(66, 71, 84, 0.3);
+  }
+
+  .glass-dark {
+    background: rgba(5, 20, 36, 0.75);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(66, 71, 84, 0.2);
+  }
+
+  .glow-green  { box-shadow: 0 0 30px rgba(78, 222, 163, 0.12), 0 0 60px rgba(78, 222, 163, 0.06); }
+  .glow-yellow { box-shadow: 0 0 30px rgba(255, 185, 95, 0.12), 0 0 60px rgba(255, 185, 95, 0.06); }
+  .glow-red    { box-shadow: 0 0 30px rgba(255, 180, 171, 0.12), 0 0 60px rgba(255, 180, 171, 0.06); }
+  .glow-blue   { box-shadow: 0 0 30px rgba(173, 198, 255, 0.12), 0 0 60px rgba(173, 198, 255, 0.06); }
+
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
+  }
+  .fill-icon {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+
+  .nav-active {
+    color: #adc6ff !important;
+    border-bottom: 2px solid #adc6ff;
+  }
+
+  .gantt-row {
+    position: relative;
+    height: 36px;
+    border-radius: 6px;
+    overflow: visible;
+  }
+
+  .gantt-bar {
+    position: absolute;
+    height: calc(100% - 6px);
+    top: 3px;
+    border-radius: 4px;
+    transition: opacity 0.25s, transform 0.15s;
+    cursor: pointer;
+  }
+
+  .gantt-bar:hover {
+    transform: scaleY(1.2);
+    z-index: 10;
+  }
+
+  .cursor-line {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    width: 2px;
+    border-radius: 2px;
+    z-index: 20;
+    pointer-events: none;
+    transition: left 0.05s linear;
+  }
+
+  .mesh-bg {
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(78,222,163,0.04) 0%, transparent 60%),
+      radial-gradient(circle at 80% 80%, rgba(173,198,255,0.04) 0%, transparent 60%),
+      radial-gradient(circle at 50% 50%, rgba(255,185,95,0.02) 0%, transparent 70%);
+  }
+
+  .shimmer-text {
+    background: linear-gradient(90deg, #d4e4fa 0%, #adc6ff 30%, #4edea3 50%, #adc6ff 70%, #d4e4fa 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 4s linear infinite;
+  }
+  @keyframes shimmer {
+    to { background-position: 200% center; }
+  }
+
+  .pulse-dot {
+    animation: pulse-anim 2s infinite ease-in-out;
+  }
+  @keyframes pulse-anim {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.5; transform:scale(1.5); }
+  }
+
+  .float-icon {
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-5px); }
+  }
+
+  .priority-bar {
+    height: 6px;
+    border-radius: 3px;
+    transition: width 1s cubic-bezier(0.22,1,0.36,1);
+  }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* Radial grid lines for section bg */
+  .dot-grid {
+    background-image: radial-gradient(circle, rgba(66,71,84,0.4) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* ── CodePen-inspired showcase animations ─────────────────────────── */
+
+  /* Conic animated gradient border (spinning halo around a card) */
+  .aurora-border {
+    position: relative;
+    border-radius: 1rem;
+    isolation: isolate;
+  }
+  .aurora-border::before {
+    content: "";
+    position: absolute;
+    inset: -1.5px;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: conic-gradient(
+      from var(--angle, 0deg),
+      transparent 0%,
+      var(--aurora, #4edea3) 18%,
+      transparent 38%,
+      transparent 100%
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: spin-angle 5s linear infinite;
+    z-index: -1;
+  }
+  @property --angle {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+  }
+  @keyframes spin-angle {
+    to { --angle: 360deg; }
+  }
+
+  /* Shine sweep that crosses a card on hover */
+  .shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .shine::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(
+      100deg,
+      transparent,
+      rgba(255, 255, 255, 0.12),
+      transparent
+    );
+    transform: skewX(-18deg);
+    transition: left 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+  }
+  .shine:hover::after { left: 140%; }
+
+  /* Racing track bar with moving stripes */
+  .race-fill {
+    position: relative;
+    overflow: hidden;
+    border-radius: 999px;
+  }
+  .race-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.18) 0 12%,
+      transparent 12% 50%,
+      rgba(255, 255, 255, 0.18) 50% 62%,
+      transparent 62% 100%
+    );
+    background-size: 28px 100%;
+    animation: stripe-move 0.9s linear infinite;
+    opacity: 0.5;
+  }
+  @keyframes stripe-move {
+    to { background-position: 28px 0; }
+  }
+
+  /* Soft breathing glow used on the winner */
+  .breathe {
+    animation: breathe 3.2s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { box-shadow: 0 0 24px rgba(78, 222, 163, 0.18), 0 0 60px rgba(78, 222, 163, 0.08); }
+    50%      { box-shadow: 0 0 40px rgba(78, 222, 163, 0.34), 0 0 90px rgba(78, 222, 163, 0.16); }
+  }
+
+  /* Rising podium bars */
+  @keyframes rise {
+    from { transform: scaleY(0); }
+    to   { transform: scaleY(1); }
+  }
+
+  /* Crown / sparkle pop */
+  .sparkle { animation: sparkle 2.4s ease-in-out infinite; }
+  @keyframes sparkle {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    50%      { transform: scale(1.18) rotate(8deg); opacity: 0.85; }
+  }
+
+  /* Ticker marquee */
+  .marquee-track {
+    display: inline-flex;
+    white-space: nowrap;
+    animation: marquee 24s linear infinite;
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+
+  /* Number line segment */
+  .tier-segment {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 8px;
+  }
+}

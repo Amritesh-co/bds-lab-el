@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__canva__cancel-editing-transaction",
+      "mcp__canva__comment-on-design",
+      "mcp__canva__commit-editing-transaction",
+      "mcp__canva__copy-design",
+      "mcp__canva__create-design-from-brand-template",
+      "mcp__canva__create-design-from-candidate",
+      "mcp__canva__create-folder",
+      "mcp__canva__export-design",
+      "mcp__canva__generate-design",
+      "mcp__canva__get-assets",
+      "mcp__canva__get-brand-template-dataset",
+      "mcp__canva__get-design",
+      "mcp__canva__get-design-content",
+      "mcp__canva__get-design-pages",
+      "mcp__canva__get-design-thumbnail",
+      "mcp__canva__get-export-formats",
+      "mcp__canva__get-presenter-notes",
+      "mcp__canva__import-design-from-url",
+      "mcp__canva__list-brand-kits",
+      "mcp__canva__list-comments",
+      "mcp__canva__list-folder-items",
+      "mcp__canva__list-replies",
+      "mcp__canva__move-item-to-folder",
+      "mcp__canva__perform-editing-operations",
+      "mcp__canva__reply-to-comment",
+      "mcp__canva__resize-design",
+      "mcp__canva__resolve-shortlink",
+      "mcp__canva__search-brand-templates",
+      "mcp__canva__search-designs",
+      "mcp__canva__search-folders",
+      "mcp__canva__start-editing-transaction",
+      "mcp__canva__upload-asset-from-url"
+    ]
+  }
+}

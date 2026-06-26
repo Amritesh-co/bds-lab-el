@@ -1,0 +1,140 @@
+{
+  "results": [
+    {
+      "job_index": 0,
+      "job_type": "medium",
+      "input_size_mb": 99.0,
+      "num_partitions": 2,
+      "actual_time": 7.7546,
+      "start_ts": 0.0,
+      "end_ts": 7.7546
+    },
+    {
+      "job_index": 1,
+      "job_type": "large",
+      "input_size_mb": 1.5,
+      "num_partitions": 2,
+      "actual_time": 111.2327,
+      "start_ts": 7.7547,
+      "end_ts": 118.9875
+    },
+    {
+      "job_index": 2,
+      "job_type": "medium",
+      "input_size_mb": 304.0,
+      "num_partitions": 8,
+      "actual_time": 11.9676,
+      "start_ts": 118.9875,
+      "end_ts": 130.9551
+    },
+    {
+      "job_index": 3,
+      "job_type": "medium",
+      "input_size_mb": 304.0,
+      "num_partitions": 2,
+      "actual_time": 11.9273,
+      "start_ts": 130.9552,
+      "end_ts": 142.8824
+    },
+    {
+      "job_index": 4,
+      "job_type": "large",
+      "input_size_mb": 1.5,
+      "num_partitions": 8,
+      "actual_time": 48.8841,
+      "start_ts": 142.8825,
+      "end_ts": 191.7666
+    },
+    {
+      "job_index": 5,
+      "job_type": "large",
+      "input_size_mb": 1.5,
+      "num_partitions": 4,
+      "actual_time": 67.2735,
+      "start_ts": 191.7667,
+      "end_ts": 259.0401
+    },
+    {
+      "job_index": 6,
+      "job_type": "medium",
+      "input_size_mb": 304.0,
+      "num_partitions": 2,
+      "actual_time": 12.3173,
+      "start_ts": 259.0402,
+      "end_ts": 271.3576
+    },
+    {
+      "job_index": 7,
+      "job_type": "small",
+      "input_size_mb": 1000.0,
+      "num_partitions": 4,
+      "actual_time": 14.4733,
+      "start_ts": 271.3576,
+      "end_ts": 285.8309
+    },
+    {
+      "job_index": 8,
+      "job_type": "medium",
+      "input_size_mb": 199.0,
+      "num_partitions": 2,
+      "actual_time": 7.8082,
+      "start_ts": 285.831,
+      "end_ts": 293.6392
+    },
+    {
+      "job_index": 9,
+      "job_type": "small",
+      "input_size_mb": 1000.0,
+      "num_partitions": 2,
+      "actual_time": 13.5092,
+      "start_ts": 293.6392,
+      "end_ts": 307.1484
+    },
+    {
+      "job_index": 10,
+      "job_type": "small",
+      "input_size_mb": 1000.0,
+      "num_partitions": 2,
+      "actual_time": 13.3823,
+      "start_ts": 307.1484,
+      "end_ts": 320.5307
+    },
+    {
+      "job_index": 11,
+      "job_type": "large",
+      "input_size_mb": 1.5,
+      "num_partitions": 8,
+      "actual_time": 50.7911,
+      "start_ts": 320.5307,
+      "end_ts": 371.3218
+    },
+    {
+      "job_index": 12,
+      "job_type": "small",
+      "input_size_mb": 1500.0,
+      "num_partitions": 8,
+      "actual_time": 20.899,
+      "start_ts": 371.3218,
+      "end_ts": 392.2209
+    },
+    {
+      "job_index": 13,
+      "job_type": "small",
+      "input_size_mb": 500.0,
+      "num_partitions": 2,
+      "actual_time": 8.3365,
+      "start_ts": 392.2209,
+      "end_ts": 400.5575
+    },
+    {
+      "job_index": 14,
+      "job_type": "large",
+      "input_size_mb": 1.5,
+      "num_partitions": 8,
+      "actual_time": 142.9356,
+      "start_ts": 400.5576,
+      "end_ts": 543.4931
+    }
+  ],
+  "makespan": 544.4919
+}

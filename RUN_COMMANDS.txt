@@ -1,0 +1,61 @@
+Adaptive Spark Task Scheduling — Re-run Commands Guide
+======================================================
+
+Make sure to run these commands from the project root directory:
+/Users/ignite/College/6TH SEM/bda lab/EL/
+
+Before running Python scripts, activate the virtual environment:
+source venv/bin/activate
+
+---------------------------------------------------------
+1. RUN THE FULL END-TO-END DEMO (Easiest)
+---------------------------------------------------------
+Generates workload data, trains the models, runs all benchmarks, and creates plots:
+
+  bash run_demo.sh
+
+---------------------------------------------------------
+2. GENERATE A NEW WORKLOAD DATASET
+---------------------------------------------------------
+Generates new synthetic run metrics and appends them to data/raw_metrics.csv.
+Change --n-runs to adjust the dataset size:
+
+  python -m workload.generator --n-runs 40
+
+---------------------------------------------------------
+3. RETRAIN PREDICTION MODELS
+---------------------------------------------------------
+Retrains the Random Forest and XGBoost estimators using current metrics data:
+
+  python -m model.train
+
+---------------------------------------------------------
+4. RUN SCHEDULING BENCHMARKS
+---------------------------------------------------------
+Runs the test queue comparison.
+
+To run all modes (FIFO, Adaptive, and PASTA):
+  python -m benchmark.runner --mode all
+
+To run a specific scheduling mode:
+  python -m benchmark.runner --mode fifo
+  python -m benchmark.runner --mode adaptive
+  python -m benchmark.runner --mode pasta
+
+To run PASTA with the online feedback loop enabled (retrains after completion):
+  python -m benchmark.runner --mode pasta --feedback
+
+---------------------------------------------------------
+5. GENERATE COMPARISON PLOTS & REPORTS
+---------------------------------------------------------
+Compiles results from benchmark JSONs and generates visualizations in plots/:
+
+  python -m benchmark.report
+
+---------------------------------------------------------
+6. RUN REACT DASHBOARD WEB APP
+---------------------------------------------------------
+Starts the Vite dev server for the React UI:
+
+  cd dashboard-react
+  npm run dev
