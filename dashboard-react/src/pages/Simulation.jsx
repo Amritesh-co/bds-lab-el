@@ -611,7 +611,7 @@ export default function Simulation() {
   // Tick
   const tick = useCallback(() => {
     setSimTime((t) => {
-      const dt    = (scaledMaxT / (FPS * 10)) * speed;
+      const dt    = (1 / FPS) * speed;  // Real-time: 1 second per second at speed=1
       const next  = Math.min(t + dt, scaledMaxT);
 
       // Record history snapshot every 0.25s of sim time

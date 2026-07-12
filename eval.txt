@@ -1,0 +1,124 @@
+
+=============================================================================
+                    ML MODEL EVALUATION REPORT
+                    PASTA Scheduling System
+=============================================================================
+
+DATASET STATISTICS
+------------------
+Total jobs evaluated:           45
+Number of benchmark runs:       3 (FIFO, Adaptive, PASTA)
+  FIFO jobs:                    15
+  Adaptive jobs:                15
+  PASTA jobs:                   15
+
+PREDICTION METRICS (Aggregate)
+------------------------------
+Mean Absolute Error (MAE):      34.74 seconds
+Root Mean Squared Error (RMSE): 52.89 seconds
+Mean Absolute Percentage Error: 94.3%
+R² Score:                       -0.7600
+
+⚠️  MODEL PERFORMANCE: VERY POOR
+    - R² = -0.7600 (negative = worse than just predicting the mean)
+    - MAPE = 94.3% (>100% means mostly >100% off on average)
+    - Model fails to extrapolate beyond training range
+
+PREDICTION DISTRIBUTION
+-----------------------
+Mean predicted time:            0.74s
+Mean actual time:               35.49s
+Std dev (predicted):            0.37s
+Std dev (actual):               39.87s
+
+Per-Job Error Analysis:
+  Min error:                    2.37s
+  Max error:                    156.38s
+  Median error:                 13.25s
+  Mean error:                   34.74s
+  
+  Min relative error:           67.0%
+  Max relative error:           99.5%
+  Median relative error:        98.0%
+
+PER-BENCHMARK BREAKDOWN
+-----------------------
+
+FIFO:
+  MAE:    35.49s  |  RMSE:   53.64s  |  MAPE:   94.9%
+
+Adaptive:
+  MAE:    41.58s  |  RMSE:   61.82s  |  MAPE:   94.8%
+
+PASTA:
+  MAE:    27.16s  |  RMSE:   41.15s  |  MAPE:   93.0%
+
+TRAINING DATA vs DEPLOYMENT
+----------------------------
+Training set:                   190 jobs (synthetic)
+Training input range:           ~10-100 MB
+Training execution time:        ~2-30 seconds
+Training num_partitions:        2-8
+
+Deployment input range:         500-1500 MB (50-150× larger)
+Deployment execution time:      5-180+ seconds (5-60× longer)
+Deployment num_partitions:      2-8
+
+ROOT CAUSE: EXTRAPOLATION FAILURE
+----------------------------------
+✗ Model trained on 10-100 MB jobs, asked to predict 500-1500 MB jobs
+✗ Random Forest (max_depth=12) cannot extrapolate 50-100× beyond training data
+✗ Missing features: shuffle_count, iteration_count, gc_overhead
+✗ Log1p transform doesn't bridge 100× scale difference
+
+EXAMPLE WORST PREDICTIONS
+--------------------------
+1. Adaptive | large  |     1.5MB | pred=  0.79s | actual= 157.17s | error=  99.5%
+2. Adaptive | large  |     1.5MB | pred=  0.69s | actual= 128.91s | error=  99.5%
+3. FIFO     | large  |     1.5MB | pred=  0.79s | actual= 142.94s | error=  99.4%
+4. FIFO     | large  |     1.5MB | pred=  0.69s | actual= 111.23s | error=  99.4%
+5. PASTA    | large  |     1.5MB | pred=  0.79s | actual= 110.75s | error=  99.3%
+
+SCHEDULING ALGORITHM ROBUSTNESS
+--------------------------------
+✓ POSITIVE: Despite poor absolute predictions
+  - Relative job ranking is mostly preserved
+  - SJF still orders shorter jobs first (even if magnitudes wrong)
+  - Aging term prevents starvation
+
+✗ NEGATIVE: Resource tier assignment is wrong
+  - Dynamic tier boundaries use incorrect percentiles
+  - Small 500MB job might get 2GB memory allocation
+  - Large 1500MB job might get only 512MB allocation
+
+RECOMMENDATIONS FOR IMPROVEMENT
+--------------------------------
+Priority 1: USE GOOGLE CLUSTER TRACE DATA
+  - 660K+ real production jobs with 500MB-100GB+ sizes
+  - Would improve generalization dramatically
+  - Run: python -m data.adapters.google_adapter
+
+Priority 2: ADD MISSING FEATURES
+  - Iteration count (critical for iterative jobs like PageRank)
+  - Shuffle operation count (key factor in Spark performance)
+  - Memory pressure estimate (input_size × num_partitions)
+
+Priority 3: IMPROVE FEATURE ENGINEERING
+  - Use log-scale for input_size to handle 1-1000MB range
+  - Add polynomial features for non-linear relationships
+  - Normalize features to [0,1] range before training
+
+Priority 4: USE FEEDBACK LOOP
+  - Run: python -m benchmark.runner --mode pasta --feedback
+  - Model retrains after each benchmark
+  - Accumulates real execution data
+  - Accuracy improves over iterations
+
+=============================================================================
+Model:     Random Forest (300 trees, max_depth=12) + XGBoost (500 trees)
+Training:  log1p-transformed execution_time_sec
+Features:  input_size_mb, num_partitions, job_type_encoded, hour_of_day, num_tasks
+Data:      data/raw_metrics.csv (190 synthetic jobs)
+Evaluation: 45 jobs from 3 benchmark runs (FIFO, Adaptive, PASTA)
+Generated:  2026-06-26
+=============================================================================

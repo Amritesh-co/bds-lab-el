@@ -1,0 +1,26 @@
+# PASTA backend: Flask API + PySpark pipeline (dev server, as run today)
+FROM python:3.11-slim
+
+# Java 17 for PySpark, as required by CLAUDE.md
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-17-jdk-headless \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH="$JAVA_HOME/bin:$PATH"
+
+WORKDIR /app
+
+# Recreate the ./venv layout server.py expects (VENV_PY = ./venv/bin/python)
+RUN python -m venv /app/venv
+COPY requirements.txt .
+RUN /app/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN mkdir -p /tmp/spark-events
+
+EXPOSE 5175
+
+CMD ["/app/venv/bin/python", "server.py"]

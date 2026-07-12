@@ -1,0 +1,213 @@
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                        PASTA PIPELINE - QUICK START GUIDE                              ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+
+🚀 FASTEST: Run everything in one command (30-40 minutes)
+──────────────────────────────────────────────────────────
+
+cd /Users/ignite/College/6TH\ SEM/bda\ lab/EL
+bash run_demo.sh
+
+✓ Generates data + trains models + runs benchmarks + creates plots
+
+
+📋 MANUAL: Step-by-step (if you want to run individual steps)
+──────────────────────────────────────────────────────────────
+
+Step 0: Setup (do this once)
+  cd /Users/ignite/College/6TH\ SEM/bda\ lab/EL
+  source venv/bin/activate
+  export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+  export PYSPARK_PYTHON="$PWD/venv/bin/python3"
+  export PYSPARK_DRIVER_PYTHON="$PWD/venv/bin/python3"
+  mkdir -p /tmp/spark-events data/input model/artifacts plots
+
+Step 1: Generate data (5-10 min)
+  python -m workload.generator --n-runs 40
+  
+Step 2: Train ML model (1-2 min)
+  python -m model.train
+  
+Step 3: Run benchmarks (15-30 min) [Pick ONE:]
+  # All three schedulers
+  python -m benchmark.runner --mode all
+  
+  # Or individual
+  python -m benchmark.runner --mode fifo
+  python -m benchmark.runner --mode adaptive
+  python -m benchmark.runner --mode pasta
+  
+Step 4: Generate plots (1 min)
+  python -m benchmark.report
+  
+Step 5: View results
+  cat eval.txt              # Model accuracy metrics
+  open plots/               # View visualizations (macOS)
+  ls -la data/benchmark_*   # Check JSON files
+
+
+🎨 LIVE DASHBOARD: View results in real-time web UI
+─────────────────────────────────────────────────
+
+Terminal 1:
+  ./venv/bin/python server.py
+  # Flask API running on http://localhost:5175
+
+Terminal 2:
+  cd dashboard-react
+  npm run dev
+  # React UI running on http://localhost:5174
+
+Terminal 3:
+  open http://localhost:5174
+  # Click "Run Benchmark" button to start live benchmark run
+
+
+🔄 FEEDBACK LOOP: Improve model accuracy over time
+────────────────────────────────────────────────
+
+  python -m benchmark.runner --mode pasta --feedback
+  
+  Then repeat:
+  python -m benchmark.runner --mode pasta --feedback
+  python -m benchmark.runner --mode pasta --feedback
+  
+  (Model gets better each iteration)
+
+
+📊 CHECK RESULTS
+────────────────
+
+  eval.txt                              # Evaluation metrics
+  data/benchmark_fifo.json              # FIFO results
+  data/benchmark_adaptive.json          # Adaptive results
+  data/benchmark_pasta.json             # PASTA results
+  plots/01_gantt_comparison.png         # Job timelines
+  plots/02_makespan_comparison.png      # Speedup comparison
+  plots/04_predicted_vs_actual.png      # Model accuracy
+  
+
+⏱️  EXPECTED TIMING
+───────────────────
+
+Full pipeline (bash run_demo.sh):
+  ├─ Data generation:     5-10 min
+  ├─ Model training:      1-2 min
+  ├─ FIFO benchmark:      8-10 min
+  ├─ Adaptive benchmark:  10-12 min
+  ├─ PASTA benchmark:     6-8 min
+  └─ Plot generation:     1-2 min
+  ═════════════════════════════════
+  Total:                  31-44 min
+
+
+🎯 WHAT TO EXPECT
+──────────────────
+
+FIFO Makespan:      ~544 seconds (baseline)
+Adaptive Makespan:  ~636 seconds (usually worse due to poor predictions)
+PASTA Makespan:     ~418 seconds (30% faster than FIFO!)
+
+Speedup: PASTA is 1.30x faster than FIFO
+
+
+📈 KEY FILES
+─────────────
+
+  CLAUDE.md                           # Project documentation
+  PIPELINE_EXECUTION_GUIDE.md         # Detailed guide (this document)
+  SCHEDULER_COMPARISON.txt            # Side-by-side scheduler comparison
+  SCHEDULING_PIPELINE.md              # Detailed flow diagrams
+  run_demo.sh                         # One-command pipeline
+  eval.txt                            # Model accuracy metrics
+  
+  data/raw_metrics.csv                # Training dataset (190 jobs)
+  data/benchmark_fifo.json            # FIFO results
+  data/benchmark_adaptive.json        # Adaptive results
+  data/benchmark_pasta.json           # PASTA results
+  
+  model/artifacts/rf_model.joblib     # Random Forest model
+  model/artifacts/xgb_model.joblib    # XGBoost model
+  model/artifacts/encoder.joblib      # Job type encoder
+  
+  plots/01_*.png through 10_*.png     # 10 visualization plots
+
+
+🐛 COMMON ISSUES & FIXES
+──────────────────────
+
+Issue: "PYTHON_VERSION_MISMATCH" error
+  Fix: Make sure PYSPARK_PYTHON and PYSPARK_DRIVER_PYTHON are set
+  $ export PYSPARK_PYTHON="$PWD/venv/bin/python3"
+  $ export PYSPARK_DRIVER_PYTHON="$PWD/venv/bin/python3"
+
+Issue: "StackOverflowError" in PageRank
+  Fix: Already fixed in code (checkpointing every 20 iterations)
+       If still occurs, reduce iteration counts in benchmark/runner.py
+
+Issue: "OutOfMemoryError"
+  Fix: Reduce input file sizes in benchmark/runner.py
+       Use smaller text files (500MB instead of 1500MB)
+
+Issue: Plots not generated
+  Fix: Check if benchmark JSONs exist:
+       $ ls -la data/benchmark_*.json
+       If missing, run benchmarks:
+       $ python -m benchmark.runner --mode all
+
+
+✅ SUCCESS CHECKLIST
+─────────────────────
+
+☐ Pipeline runs without errors
+☐ eval.txt shows model metrics
+☐ 10 plots generated in plots/ directory
+☐ benchmark_*.json files created
+☐ Models saved in model/artifacts/
+☐ Dashboard works (if you started it)
+
+
+💡 TIPS
+───────
+
+1. First time: Run `bash run_demo.sh` to see full pipeline
+2. For development: Run individual steps with flags
+3. Use `--feedback` flag to improve model accuracy
+4. Check `CLAUDE.md` for architecture overview
+5. Check `PIPELINE_EXECUTION_GUIDE.md` for detailed explanations
+6. Use dashboard for visual results
+7. Check `plots/` directory for all 10 visualizations
+
+
+🎓 LEARNING PATH
+─────────────────
+
+1. Understand the problem:
+   Read: README.md, CLAUDE.md, COMPLETE_PROJECT_EXPLANATION.md
+
+2. Understand the algorithms:
+   Read: SCHEDULER_COMPARISON.txt, SCHEDULING_PIPELINE.md
+
+3. Understand the code:
+   Read: model/, scheduler/, benchmark/, workload/
+
+4. Run the pipeline:
+   Execute: bash run_demo.sh
+
+5. Analyze results:
+   Check: plots/, eval.txt, dashboard
+
+6. Improve the model:
+   Run: --feedback iterations
+
+7. Experiment:
+   Modify parameters and run again
+
+
+═══════════════════════════════════════════════════════════════════════════════════════════
+
+For detailed step-by-step instructions, see: PIPELINE_EXECUTION_GUIDE.md
+For scheduler comparison, see: SCHEDULER_COMPARISON.txt
+For full flow diagrams, see: SCHEDULING_PIPELINE.md
+
+Happy scheduling! 🚀

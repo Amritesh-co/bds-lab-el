@@ -1,0 +1,203 @@
+╔═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                           SCHEDULER COMPARISON: FIFO vs ADAPTIVE vs PASTA                                      ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+┌───────────────────────────────────┬────────────────────────────────────┬────────────────────────────────────┐
+│           FIFO SCHEDULER           │       ADAPTIVE SCHEDULER (SJF)     │         PASTA SCHEDULER            │
+│         (Baseline, Simple)         │      (Prediction + SJF)            │    (Prediction + SJF + Aging)      │
+├───────────────────────────────────┼────────────────────────────────────┼────────────────────────────────────┤
+│                                   │                                    │                                    │
+│ INPUT: Job queue                  │ INPUT: Job queue                   │ INPUT: Job queue                   │
+│   [J0, J1, J2, ..., J14]          │   [J0, J1, J2, ..., J14]           │   [J0, J1, J2, ..., J14]          │
+│   (original order)                │   (original order)                 │   (original order)                 │
+│                                   │                                    │                                    │
+│ ALGORITHM:                        │ ALGORITHM:                         │ ALGORITHM:                         │
+│   1. No prediction                │   1. PREDICT execution time        │   1. PREDICT execution time        │
+│   2. Run in order                 │      for each job:                 │      for each job:                 │
+│      J0 → J1 → J2 → ...          │      t_pred = ML_Model.predict()   │      t_pred = ML_Model.predict()   │
+│   3. Single config (default)      │                                    │                                    │
+│      512m mem, 1 core             │   2. SORT by predicted time        │   2. COMPUTE tier boundaries       │
+│   4. No tier assignment           │      (ascending)                   │      low = p33(predictions)        │
+│   5. No feedback                  │      Shortest job first            │      high = p66(predictions)       │
+│                                   │                                    │                                    │
+│                                   │   3. ASSIGN tiers (static):        │   3. COMPUTE priority:             │
+│                                   │      < 10s  → small (512m, 1)      │      priority_i = 0.70 *           │
+│                                   │      < 60s  → medium (1g, 2)       │          norm_sjf_i               │
+│                                   │      ≥ 60s  → large (2g, 2)        │        + 0.30 * norm_aging_i       │
+│                                   │                                    │                                    │
+│                                   │   4. RUN each job with             │      norm_sjf = 1 - (pred -       │
+│                                   │      tier-specific config          │          min_pred) / range        │
+│                                   │      (rebuild SparkSession         │      norm_aging = wait_time /      │
+│                                   │      per job)                      │          max_wait                 │
+│                                   │                                    │                                    │
+│                                   │   5. No feedback                   │   4. SORT by priority (descending)│
+│                                   │                                    │                                    │
+│                                   │                                    │   5. ASSIGN tiers (dynamic):       │
+│                                   │                                    │      ≤ low  → small (512m, 1)     │
+│                                   │                                    │      ≤ high → medium (1g, 2)      │
+│                                   │                                    │      > high → large (2g, 2)       │
+│                                   │                                    │                                    │
+│                                   │                                    │   6. RUN with tier-specific cfg   │
+│                                   │                                    │                                    │
+│                                   │                                    │   7. OPTIONAL: Append results to  │
+│                                   │                                    │      raw_metrics.csv and retrain  │
+│                                   │                                    │      model (--feedback flag)      │
+│                                   │                                    │                                    │
+├───────────────────────────────────┼────────────────────────────────────┼────────────────────────────────────┤
+│ PREDICTION PHASE:                 │ PREDICTION PHASE:                  │ PREDICTION PHASE:                  │
+│   ✗ None                          │   ✓ Yes (ML model)                 │   ✓ Yes (ML model)                 │
+│                                   │                                    │                                    │
+│ PRIORITIZATION:                   │ PRIORITIZATION:                    │ PRIORITIZATION:                    │
+│   ✗ None (fixed order)            │   ✓ SJF (shortest first)           │   ✓ SJF + Aging                    │
+│                                   │                                    │      (short jobs first, but        │
+│                                   │                                    │       long jobs don't starve)      │
+│                                   │                                    │                                    │
+│ TIER ASSIGNMENT:                  │ TIER ASSIGNMENT:                   │ TIER ASSIGNMENT:                   │
+│   ✗ None (all jobs same config)   │   ✓ Static (10s/60s thresholds)    │   ✓ Dynamic (33rd/66th percentiles)│
+│                                   │                                    │      Adapts to workload            │
+│                                   │                                    │                                    │
+│ STARVATION PREVENTION:            │ STARVATION PREVENTION:             │ STARVATION PREVENTION:             │
+│   ✗ None (lucky to run)           │   ✗ None (long jobs can wait)      │   ✓ Yes (aging term prevents it)   │
+│                                   │                                    │                                    │
+│ FEEDBACK LEARNING:                │ FEEDBACK LEARNING:                 │ FEEDBACK LEARNING:                 │
+│   ✗ No                            │   ✗ No                             │   ✓ Yes (--feedback retrains)      │
+│                                   │                                    │                                    │
+├───────────────────────────────────┼────────────────────────────────────┼────────────────────────────────────┤
+│ EXAMPLE ORDER (15 jobs):          │ EXAMPLE ORDER (15 jobs):           │ EXAMPLE ORDER (15 jobs):           │
+│                                   │                                    │                                    │
+│ Input queue:                      │ Input queue (same):                │ Input queue (same):                │
+│   J0:small   pred=0.26s           │   J0:small   pred=0.26s            │   J0:small   pred=0.26s            │
+│   J1:medium  pred=0.99s           │   J1:medium  pred=0.99s            │   J1:medium  pred=0.99s            │
+│   J2:large   pred=0.79s           │   J2:large   pred=0.79s            │   J2:large   pred=0.79s            │
+│   ...                             │   ...                              │   ...                              │
+│                                   │                                    │                                    │
+│ Scheduled order:                  │ Scheduled order (SJF):             │ Scheduled order (Priority):        │
+│   [J0, J1, J2, J3, ...]          │   [J0, J2, J5, J6, J3, J4, J7,     │   Tiers: low=0.61, high=0.84       │
+│   (original, no change)           │    J8, J9, J10, J11, J12,          │   Priority[i] = 0.70*norm_sjf     │
+│                                   │    J13, J14]                       │              + 0.30*norm_aging     │
+│                                   │   (sorted by predicted time)       │   [J0, J2, J5, J6, J3, ...]       │
+│                                   │                                    │   (sorted by priority score)       │
+│                                   │                                    │                                    │
+├───────────────────────────────────┼────────────────────────────────────┼────────────────────────────────────┤
+│ ACTUAL PERFORMANCE:               │ ACTUAL PERFORMANCE:                │ ACTUAL PERFORMANCE:                │
+│                                   │                                    │                                    │
+│ Makespan:      544.49 seconds     │ Makespan:      636.12 seconds      │ Makespan:      418.57 seconds      │
+│ Avg latency:   36.23 seconds      │ Avg latency:   42.32 seconds       │ Avg latency:   27.90 seconds       │
+│ Speedup:       1.00x (baseline)   │ Speedup:       0.86x (WORSE)       │ Speedup:       1.30x (BEST)        │
+│                                   │                                    │                                    │
+│ Note: FIFO wins because           │ Note: Adaptive SJF loses because    │ PASTA wins by combining all       │
+│ the 15-job queue order happens    │ predictions are very inaccurate    │ optimization techniques AND       │
+│ to be mostly optimal for fixed    │ (94% error). Fixed tier            │ feedback learning.                 │
+│ Spark config.                     │ assignment also suboptimal.        │                                    │
+│                                   │                                    │                                    │
+└───────────────────────────────────┴────────────────────────────────────┴────────────────────────────────────┘
+
+╔═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                            KEY INSIGHT: Why PASTA Wins                                                         ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+Three optimization layers stacked:
+
+  Layer 1: PREDICTION (ML Model)
+           └─ Estimates job duration before running
+           
+  Layer 2: SJF (Shortest Job First)
+           └─ Uses predictions to prioritize: short jobs → run first
+           └─ Reduces tail latency, completes queue sooner
+           
+  Layer 3: AGING (Starvation Prevention)
+           └─ Long jobs waiting too long get boosted
+           └─ Prevents indefinite postponement
+           └─ Balance: 70% SJF, 30% aging prevents starvation
+           
+  Layer 4: DYNAMIC TIERS (Workload Adaptation)
+           └─ Tier boundaries adapt to current queue
+           └─ Always allocate 33% resources to small, 33% to medium, 33% to large
+           └─ Meaningful tier assignment regardless of workload scale
+           
+  Layer 5: FEEDBACK LOOP (Learning)
+           └─ Compare predicted vs actual times
+           └─ Retrain model on real execution data
+           └─ Next run uses improved predictions
+           └─ Closes the loop: learn from mistakes
+
+
+╔═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                         Current Model Accuracy (Why Predictions Fail)                                          ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+Training Data:
+  • 190 synthetic jobs
+  • Job size: 10-100 MB
+  • Execution time: 2-30 seconds
+  
+Deployment Workload:
+  • 15 benchmark jobs
+  • Job size: 500-1500 MB (50-150× larger!)
+  • Execution time: 5-180 seconds (5-60× longer!)
+  
+Root Cause: EXTRAPOLATION FAILURE
+  • Model trained on 10-100 MB, asked to predict 500-1500 MB
+  • Random Forest with max_depth=12 cannot extrapolate beyond training range
+  • Predictions average 0.7s, actual times average 35.5s
+  • R² = -0.76 (worse than just predicting the mean)
+  • MAPE = 94.3% (average error 94%)
+  
+Solution: Use Google Cluster Trace
+  • 660K+ real production jobs
+  • Size range: 500MB to 100GB+
+  • Would dramatically improve generalization
+  • Command: python -m data.adapters.google_adapter
+
+
+╔═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                         Feedback Loop: How PASTA Learns                                                        ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+Step 1: PASTA Scheduler runs benchmark
+   └─ Produces data/benchmark_pasta.json with actual_time for each job
+
+Step 2: Feedback loop triggered (--feedback flag)
+   └─ benchmark/runner.py:feedback_retrain()
+   └─ Transforms JSON results into ML format
+   └─ Appends to data/raw_metrics.csv
+
+Step 3: Model retraining
+   └─ python -m model.train
+   └─ Loads updated raw_metrics.csv (now has real execution data)
+   └─ Trains new Random Forest + XGBoost
+   └─ Saves to model/artifacts/
+   └─ Model now calibrated to local machine!
+
+Step 4: Next PASTA run uses improved model
+   └─ Predictions are now more accurate (trained on local data)
+   └─ Better prioritization, better tier assignment
+   └─ Makespan improves further
+
+Iteration: Repeat 5-10 times
+   └─ Raw metrics CSV accumulates 75-150 jobs
+   └─ Model gets better each iteration
+   └─ Eventually: predictions accurate, scheduling optimal
+
+
+╔═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                      Command Examples                                                                          ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+# Run all three schedulers (FIFO + Adaptive + PASTA) on same 15-job queue
+python -m benchmark.runner --mode all
+
+# Run just PASTA scheduler
+python -m benchmark.runner --mode pasta
+
+# Run PASTA with feedback loop (retrains model after run)
+python -m benchmark.runner --mode pasta --feedback
+
+# Generate visualization plots from JSON results
+python -m benchmark.report
+
+# Or use the dashboard (live visualization)
+./venv/bin/python server.py              # Start Flask API on :5175
+cd dashboard-react && npm run dev        # Start React dev server on :5174
+# Click "Run Benchmark" button in web UI
+

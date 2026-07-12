@@ -1,0 +1,8 @@
+venv
+dashboard-react/node_modules
+dashboard-react/dist
+data
+plots
+.git
+**/__pycache__
+**/*.pyc
